@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""NASDAQ Volatility Scanner - Matrix Terminal Dashboard"""
+"""NASDAQ Volatility Scanner - Premium Terminal Dashboard"""
 
 import sys
+import random
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -23,53 +24,137 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Matrix Theme CSS with falling code animation
+# =============================================================================
+# PREMIUM CSS - High-end 2026 motion graphics
+# =============================================================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Glitch Animation - GPU accelerated, smooth */
-    @keyframes glitch {
-        0%, 60%, 100% {
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(0, 0, 0);
-        }
-        62% {
-            text-shadow: -2px 0 var(--accent), 2px 0 var(--negative), 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(1px, 0, 0);
-        }
-        65% {
-            text-shadow: 2px 0 var(--accent), -2px 0 var(--negative), 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(-1px, 0, 0);
-        }
-        68% {
-            text-shadow: -1px 0 var(--accent), 1px 0 var(--negative), 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(0, 1px, 0);
-        }
-        71% {
-            text-shadow: 1px 0 var(--accent), -1px 0 var(--negative), 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(0, -1px, 0);
-        }
-        74% {
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-            transform: translate3d(0, 0, 0);
+    /* =========================================================
+       CSS Custom Properties for animatable gradients
+       ========================================================= */
+    @property --glow-opacity {
+        syntax: '<number>';
+        initial-value: 0.4;
+        inherits: false;
+    }
+
+    @property --border-angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+
+    @property --shimmer-x {
+        syntax: '<percentage>';
+        initial-value: -100%;
+        inherits: false;
+    }
+
+    /* =========================================================
+       Root Design Tokens
+       ========================================================= */
+    :root {
+        --matrix-green: #00ff41;
+        --matrix-green-dim: #00cc33;
+        --matrix-green-dark: #003300;
+        --oled-black: #000000;
+        --surface: rgba(8, 8, 8, 0.85);
+        --surface-solid: #080808;
+        --surface-elevated: rgba(16, 16, 16, 0.9);
+        --accent: #00e5ff;
+        --accent-dim: rgba(0, 229, 255, 0.15);
+        --text-primary: #f0f0f0;
+        --text-secondary: #00ff41;
+        --text-dim: #4a4a4a;
+        --border: rgba(255, 255, 255, 0.06);
+        --border-hover: rgba(255, 255, 255, 0.12);
+        --negative: #ff2d55;
+        --negative-dim: rgba(255, 45, 85, 0.12);
+        --positive: #00ff41;
+        --positive-dim: rgba(0, 255, 65, 0.12);
+        --warning: #ffcc00;
+        --warning-dim: rgba(255, 204, 0, 0.12);
+
+        /* Premium easing curves */
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+        --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
+        --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* =========================================================
+       Global Resets & Base
+       ========================================================= */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
         }
     }
 
-    /* Matrix Rain - GPU accelerated for 60fps */
+    .stApp {
+        background-color: var(--oled-black) !important;
+    }
+
+    .main .block-container {
+        background-color: var(--oled-black);
+        padding: 2rem 3rem;
+        max-width: 1400px;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* =========================================================
+       Scanline Overlay - Ultra subtle CRT effect
+       ========================================================= */
+    .scanline-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 1px,
+            rgba(0, 0, 0, 0.015) 1px,
+            rgba(0, 0, 0, 0.015) 2px
+        );
+        mix-blend-mode: multiply;
+    }
+
+    /* =========================================================
+       Matrix Rain - Refined, fewer columns, GPU-accelerated
+       ========================================================= */
     @keyframes rain-fall {
         0% {
-            transform: translate3d(0, -100%, 0);
+            transform: translate3d(0, -100%, 0) scaleY(0.8);
             opacity: 0;
         }
-        5% {
+        3% {
             opacity: 1;
+            transform: translate3d(0, -90%, 0) scaleY(1);
         }
-        80% {
-            opacity: 0.3;
+        85% {
+            opacity: 0.15;
         }
         100% {
-            transform: translate3d(0, 2000px, 0);
+            transform: translate3d(0, 2200px, 0) scaleY(1);
             opacity: 0;
         }
     }
@@ -85,14 +170,14 @@ st.markdown("""
         overflow: hidden;
         contain: strict;
         mask-image: linear-gradient(to bottom,
-            rgba(0,0,0,0.4) 0%,
-            rgba(0,0,0,0.15) 30%,
-            rgba(0,0,0,0.05) 60%,
+            rgba(0,0,0,0.25) 0%,
+            rgba(0,0,0,0.08) 30%,
+            rgba(0,0,0,0.02) 60%,
             rgba(0,0,0,0) 100%);
         -webkit-mask-image: linear-gradient(to bottom,
-            rgba(0,0,0,0.4) 0%,
-            rgba(0,0,0,0.15) 30%,
-            rgba(0,0,0,0.05) 60%,
+            rgba(0,0,0,0.25) 0%,
+            rgba(0,0,0,0.08) 30%,
+            rgba(0,0,0,0.02) 60%,
             rgba(0,0,0,0) 100%);
     }
 
@@ -100,99 +185,220 @@ st.markdown("""
         position: absolute;
         top: -200px;
         color: #00ff41;
-        font-family: 'JetBrains Mono', 'Courier New', monospace;
-        font-size: 16px;
-        line-height: 1.2;
-        opacity: 0.20;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        opacity: 0.08;
         animation: rain-fall linear infinite;
         white-space: pre;
-        letter-spacing: 2px;
-        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41;
+        letter-spacing: 3px;
+        text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
         will-change: transform, opacity;
         backface-visibility: hidden;
-        -webkit-font-smoothing: antialiased;
-    }
-
-    .rain-column:nth-child(odd) {
-        opacity: 0.12;
-        font-size: 14px;
-        color: #00dd38;
+        filter: blur(0.3px);
     }
 
     .rain-column:nth-child(3n) {
-        opacity: 0.25;
-        text-shadow: 0 0 15px #00ff41, 0 0 30px #00ff41;
-        color: #00ff50;
+        opacity: 0.12;
+        text-shadow: 0 0 12px rgba(0, 255, 65, 0.4);
+        filter: blur(0px);
     }
 
-    .rain-column:nth-child(5n) {
-        opacity: 0.30;
-        font-size: 18px;
-        color: #33ff66;
-        text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41;
+    .rain-column:nth-child(7n) {
+        opacity: 0.06;
+        font-size: 11px;
+        filter: blur(0.5px);
     }
 
-    @keyframes blink {
-        0%, 49% { opacity: 1; }
-        50%, 100% { opacity: 0; }
+    /* =========================================================
+       Entrance Animations - Staggered fade-in
+       ========================================================= */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 12px, 0);
+            filter: blur(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+            filter: blur(0px);
+        }
     }
 
-    /* Root variables */
-    :root {
-        --matrix-green: #00ff41;
-        --matrix-green-dim: #00cc33;
-        --matrix-green-dark: #003300;
-        --oled-black: #000000;
-        --surface: #0a0a0a;
-        --surface-elevated: #111111;
-        --accent: #00ffff;
-        --text-primary: #ffffff;
-        --text-secondary: #00ff41;
-        --text-dim: #555555;
-        --border: #1a1a1a;
-        --negative: #ff0040;
-        --positive: #00ff41;
-        --warning: #ffaa00;
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
 
-    /* Global styles */
-    * {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translate3d(-8px, 0, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
     }
 
-    html {
-        scroll-behavior: smooth;
+    /* =========================================================
+       Glitch Effect - Subtle chromatic aberration
+       ========================================================= */
+    @keyframes glitch-subtle {
+        0%, 92%, 100% {
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+            transform: translate3d(0, 0, 0);
+        }
+        93% {
+            text-shadow:
+                -1px 0 rgba(255, 45, 85, 0.4),
+                1px 0 rgba(0, 229, 255, 0.4),
+                0 0 10px rgba(0, 255, 65, 0.4);
+            transform: translate3d(0.5px, 0, 0);
+        }
+        94% {
+            text-shadow:
+                1px 0 rgba(255, 45, 85, 0.3),
+                -1px 0 rgba(0, 229, 255, 0.3),
+                0 0 10px rgba(0, 255, 65, 0.4);
+            transform: translate3d(-0.5px, 0, 0);
+        }
+        95% {
+            text-shadow:
+                -0.5px 0.5px rgba(255, 45, 85, 0.2),
+                0.5px -0.5px rgba(0, 229, 255, 0.2),
+                0 0 10px rgba(0, 255, 65, 0.4);
+            transform: translate3d(0, 0.5px, 0);
+        }
+        96% {
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+            transform: translate3d(0, 0, 0);
+        }
     }
 
-    .stApp {
-        background-color: var(--oled-black) !important;
+    /* Second glitch layer using clip-path */
+    @keyframes glitch-clip {
+        0%, 90%, 100% {
+            clip-path: inset(0 0 0 0);
+        }
+        91% {
+            clip-path: inset(20% 0 60% 0);
+        }
+        92% {
+            clip-path: inset(60% 0 10% 0);
+        }
+        93% {
+            clip-path: inset(40% 0 30% 0);
+        }
+        94% {
+            clip-path: inset(0 0 0 0);
+        }
     }
 
-    .main .block-container {
-        background-color: var(--oled-black);
-        padding: 2rem 3rem;
-        max-width: 1400px;
+    /* =========================================================
+       Ambient Glow / Breathing
+       ========================================================= */
+    @keyframes breathe {
+        0%, 100% {
+            box-shadow: 0 0 0 rgba(0, 255, 65, 0);
+            border-color: rgba(0, 255, 65, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.06), 0 0 40px rgba(0, 255, 65, 0.03);
+            border-color: rgba(0, 255, 65, 0.5);
+        }
+    }
+
+    @keyframes shimmer {
+        0% { --shimmer-x: -100%; }
+        100% { --shimmer-x: 200%; }
+    }
+
+    @keyframes borderGlow {
+        0%, 100% { --border-angle: 0deg; }
+        100% { --border-angle: 360deg; }
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% {
+            box-shadow: 0 0 4px var(--positive), 0 0 8px var(--positive);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 8px var(--positive), 0 0 16px var(--positive), 0 0 24px rgba(0, 255, 65, 0.2);
+            transform: scale(1.15);
+        }
+    }
+
+    @keyframes blink-smooth {
+        0%, 45% { opacity: 1; }
+        50%, 95% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    /* =========================================================
+       Number Shimmer Effect
+       ========================================================= */
+    .num-shimmer {
         position: relative;
-        z-index: 1;
+        display: inline-block;
     }
 
+    .num-shimmer::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: var(--shimmer-x, -100%);
+        width: 60%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.04) 40%,
+            rgba(255, 255, 255, 0.08) 50%,
+            rgba(255, 255, 255, 0.04) 60%,
+            transparent 100%
+        );
+        animation: shimmer 6s ease-in-out infinite;
+        pointer-events: none;
+    }
 
-    /* Typography */
+    /* =========================================================
+       Typography
+       ========================================================= */
     h1, h2, h3, h4, h5, h6, p, span, div, label {
-        font-family: 'Inter', -apple-system, sans-serif !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: var(--text-primary) !important;
     }
 
     .mono {
-        font-family: 'JetBrains Mono', monospace !important;
+        font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
     }
 
-    /* Header */
+    /* =========================================================
+       Terminal Header
+       ========================================================= */
     .terminal-header {
-        border-bottom: 1px solid var(--matrix-green);
+        border-bottom: 1px solid rgba(0, 255, 65, 0.2);
         padding-bottom: 24px;
         margin-bottom: 32px;
+        animation: fadeIn 0.8s var(--ease-out-expo) both;
+        position: relative;
+    }
+
+    .terminal-header::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(0, 255, 65, 0.6) 20%,
+            rgba(0, 255, 65, 0.6) 80%,
+            transparent 100%);
     }
 
     .terminal-title {
@@ -204,11 +410,38 @@ st.markdown("""
         text-transform: uppercase;
         margin: 0;
         position: relative;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-        animation: glitch 10s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+        text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+        animation: glitch-subtle 8s var(--ease-in-out-quint) infinite;
         will-change: transform, text-shadow;
         backface-visibility: hidden;
-        -webkit-font-smoothing: antialiased;
+    }
+
+    /* Chromatic aberration pseudo-layers */
+    .terminal-title::before,
+    .terminal-title::after {
+        content: attr(data-text);
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .terminal-title::before {
+        color: var(--negative);
+        opacity: 0;
+        animation: glitch-clip 8s linear infinite;
+        animation-delay: -0.1s;
+        transform: translate3d(-1px, 0, 0);
+    }
+
+    .terminal-title::after {
+        color: var(--accent);
+        opacity: 0;
+        animation: glitch-clip 8s linear infinite;
+        animation-delay: -0.15s;
+        transform: translate3d(1px, 0, 0);
     }
 
     /* Hide Streamlit anchor links */
@@ -224,20 +457,26 @@ st.markdown("""
         color: var(--text-dim) !important;
         letter-spacing: 3px;
         margin-top: 8px;
+        animation: fadeIn 1s var(--ease-out-expo) 0.2s both;
     }
 
     .terminal-time {
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 13px;
         color: var(--matrix-green) !important;
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
     }
 
     .cursor-blink::after {
         content: '_';
-        animation: blink 1s step-end infinite;
+        animation: blink-smooth 1.2s ease-in-out infinite;
+        color: var(--matrix-green);
     }
 
-    /* Metrics grid */
+    /* =========================================================
+       Metric Cards - Frosted glass with stagger
+       ========================================================= */
     .metric-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -247,9 +486,48 @@ st.markdown("""
 
     .metric-card {
         background: var(--surface);
+        backdrop-filter: blur(12px) saturate(120%);
+        -webkit-backdrop-filter: blur(12px) saturate(120%);
         border: 1px solid var(--border);
-        border-left: 3px solid var(--matrix-green);
+        border-left: 3px solid rgba(0, 255, 65, 0.4);
         padding: 20px 24px;
+        transition: all 0.4s var(--ease-out-expo);
+        animation: fadeInUp 0.6s var(--ease-out-expo) both;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .metric-card:nth-child(1) { animation-delay: 0.1s; }
+    .metric-card:nth-child(2) { animation-delay: 0.15s; }
+    .metric-card:nth-child(3) { animation-delay: 0.2s; }
+    .metric-card:nth-child(4) { animation-delay: 0.25s; }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 60%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.02),
+            transparent
+        );
+        transition: left 0.8s var(--ease-out-expo);
+        pointer-events: none;
+    }
+
+    .metric-card:hover {
+        border-color: var(--border-hover);
+        border-left-color: rgba(0, 255, 65, 0.7);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .metric-card:hover::before {
+        left: 120%;
     }
 
     .metric-label {
@@ -267,15 +545,28 @@ st.markdown("""
         font-size: 32px;
         font-weight: 600;
         color: var(--matrix-green) !important;
+        transition: color 0.3s ease;
     }
 
-    /* Signal cards */
+    /* =========================================================
+       Signal Cards - Premium glass with animated borders
+       ========================================================= */
     .signal-card {
         background: var(--surface);
+        backdrop-filter: blur(16px) saturate(130%);
+        -webkit-backdrop-filter: blur(16px) saturate(130%);
         border: 1px solid var(--border);
         margin-bottom: 24px;
         position: relative;
         overflow: hidden;
+        animation: fadeInUp 0.5s var(--ease-out-expo) both;
+        transition: all 0.4s var(--ease-out-expo);
+    }
+
+    .signal-card:hover {
+        border-color: var(--border-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
 
     .signal-card::before {
@@ -283,13 +574,31 @@ st.markdown("""
         position: absolute;
         top: 0;
         left: 0;
-        width: 4px;
+        width: 3px;
         height: 100%;
+        transition: width 0.4s var(--ease-out-expo), box-shadow 0.4s var(--ease-out-expo);
     }
 
-    .signal-card.put::before { background: var(--negative); }
-    .signal-card.call::before { background: var(--positive); }
-    .signal-card.hedge::before { background: var(--warning); }
+    .signal-card:hover::before {
+        width: 4px;
+    }
+
+    .signal-card.put::before {
+        background: var(--negative);
+        box-shadow: 0 0 12px rgba(255, 45, 85, 0.3);
+    }
+    .signal-card.call::before {
+        background: var(--positive);
+        box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
+    }
+    .signal-card.hedge::before {
+        background: var(--warning);
+        box-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
+    }
+
+    .signal-card:hover.put::before { box-shadow: 0 0 20px rgba(255, 45, 85, 0.5); }
+    .signal-card:hover.call::before { box-shadow: 0 0 20px rgba(0, 255, 65, 0.5); }
+    .signal-card:hover.hedge::before { box-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
 
     .signal-header {
         display: flex;
@@ -306,11 +615,24 @@ st.markdown("""
         letter-spacing: 2px;
         padding: 6px 14px;
         text-transform: uppercase;
+        transition: box-shadow 0.3s var(--ease-out-expo);
     }
 
-    .signal-type.put { background: var(--negative); color: var(--oled-black); }
-    .signal-type.call { background: var(--positive); color: var(--oled-black); }
-    .signal-type.hedge { background: var(--warning); color: var(--oled-black); }
+    .signal-type.put {
+        background: var(--negative);
+        color: var(--oled-black);
+        box-shadow: 0 0 8px rgba(255, 45, 85, 0.3);
+    }
+    .signal-type.call {
+        background: var(--positive);
+        color: var(--oled-black);
+        box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+    }
+    .signal-type.hedge {
+        background: var(--warning);
+        color: var(--oled-black);
+        box-shadow: 0 0 8px rgba(255, 204, 0, 0.3);
+    }
 
     .signal-symbol {
         font-family: 'JetBrains Mono', monospace !important;
@@ -325,6 +647,7 @@ st.markdown("""
         font-size: 11px;
         color: var(--matrix-green) !important;
         letter-spacing: 1px;
+        opacity: 0.8;
     }
 
     .signal-body {
@@ -338,9 +661,7 @@ st.markdown("""
         margin-bottom: 24px;
     }
 
-    .signal-metric {
-        text-align: left;
-    }
+    .signal-metric { text-align: left; }
 
     .signal-metric-label {
         font-size: 9px;
@@ -356,19 +677,31 @@ st.markdown("""
         font-size: 20px;
         font-weight: 600;
         color: var(--text-primary) !important;
+        transition: color 0.3s ease;
     }
 
     .signal-metric-value.positive { color: var(--positive) !important; }
     .signal-metric-value.negative { color: var(--negative) !important; }
     .signal-metric-value.accent { color: var(--accent) !important; }
 
-    /* Timing section - THE KEY FEATURE */
+    /* =========================================================
+       Timing Box - Breathing border glow
+       ========================================================= */
     .timing-box {
-        background: linear-gradient(135deg, var(--surface-elevated) 0%, #0d1a0d 100%);
-        border: 2px solid var(--matrix-green);
+        background: linear-gradient(135deg, rgba(16, 16, 16, 0.9) 0%, rgba(0, 20, 0, 0.6) 100%);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 255, 65, 0.25);
         padding: 20px 24px;
         margin-top: 20px;
         position: relative;
+        overflow: hidden;
+        animation: breathe 6s ease-in-out infinite;
+        transition: all 0.4s var(--ease-out-expo);
+    }
+
+    .timing-box:hover {
+        border-color: rgba(0, 255, 65, 0.5);
     }
 
     .timing-box::before {
@@ -378,7 +711,7 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--matrix-green), transparent);
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.6), transparent);
     }
 
     .timing-label {
@@ -389,6 +722,7 @@ st.markdown("""
         text-transform: uppercase;
         color: var(--matrix-green) !important;
         margin-bottom: 12px;
+        opacity: 0.8;
     }
 
     .timing-value {
@@ -404,6 +738,7 @@ st.markdown("""
         font-size: 13px;
         color: var(--accent) !important;
         margin-top: 8px;
+        opacity: 0.9;
     }
 
     .timing-note {
@@ -413,7 +748,9 @@ st.markdown("""
         line-height: 1.5;
     }
 
-    /* Rationale */
+    /* =========================================================
+       Rationale
+       ========================================================= */
     .signal-rationale {
         font-size: 12px;
         color: var(--text-dim) !important;
@@ -423,7 +760,9 @@ st.markdown("""
         letter-spacing: 0.3px;
     }
 
-    /* Data table */
+    /* =========================================================
+       Data Table - Clean with smooth hover
+       ========================================================= */
     .data-table {
         width: 100%;
         border-collapse: collapse;
@@ -439,58 +778,52 @@ st.markdown("""
         letter-spacing: 1.5px;
         text-transform: uppercase;
         color: var(--text-dim) !important;
-        border-bottom: 1px solid var(--matrix-green);
-        background: var(--surface);
+        border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+        background: var(--surface-solid);
     }
 
     .data-table td {
         padding: 14px 16px;
         border-bottom: 1px solid var(--border);
         color: var(--text-primary) !important;
+        transition: all 0.2s ease;
     }
 
     .data-table tr {
-        transition: background 0.15s ease;
+        transition: all 0.25s var(--ease-out-expo);
     }
 
     .data-table tr:hover td {
-        background: var(--surface-elevated);
+        background: rgba(255, 255, 255, 0.02);
     }
 
     .data-table td.positive { color: var(--positive) !important; }
     .data-table td.negative { color: var(--negative) !important; }
 
-    /* Status indicators */
+    /* =========================================================
+       Status Indicators
+       ========================================================= */
     .status-dot {
         display: inline-block;
         width: 8px;
         height: 8px;
         border-radius: 50%;
         margin-right: 8px;
-    }
-
-    @keyframes status-pulse {
-        0%, 100% {
-            box-shadow: 0 0 4px var(--positive);
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 0 12px var(--positive), 0 0 20px var(--positive);
-            transform: scale(1.1);
-        }
+        transition: all 0.3s ease;
     }
 
     .status-dot.active {
         background: var(--positive);
-        box-shadow: 0 0 8px var(--positive);
-        animation: status-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        animation: pulse-dot 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         will-change: box-shadow, transform;
     }
 
-    /* Buttons - smooth transitions */
+    /* =========================================================
+       Buttons - Smooth glass transitions
+       ========================================================= */
     .stButton > button {
         background: transparent !important;
-        border: 1px solid var(--matrix-green) !important;
+        border: 1px solid rgba(0, 255, 65, 0.3) !important;
         color: var(--matrix-green) !important;
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 11px !important;
@@ -498,30 +831,45 @@ st.markdown("""
         letter-spacing: 2px !important;
         text-transform: uppercase !important;
         padding: 12px 32px !important;
-        transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        will-change: background, color, box-shadow;
+        transition: all 0.35s var(--ease-out-expo) !important;
+        will-change: background, color, box-shadow, border-color;
+        position: relative;
+        overflow: hidden;
     }
 
     .stButton > button:hover {
-        background: var(--matrix-green) !important;
-        color: var(--oled-black) !important;
-        box-shadow: 0 0 30px var(--matrix-green) !important;
+        background: rgba(0, 255, 65, 0.08) !important;
+        border-color: rgba(0, 255, 65, 0.6) !important;
+        color: var(--matrix-green) !important;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), 0 0 40px rgba(0, 255, 65, 0.05) !important;
     }
 
-    /* Select box */
+    .stButton > button:active {
+        transform: scale(0.98) !important;
+        transition: transform 0.1s ease !important;
+    }
+
+    /* =========================================================
+       Select Box
+       ========================================================= */
     .stSelectbox > div > div {
-        background: var(--surface) !important;
+        background: var(--surface-solid) !important;
         border: 1px solid var(--border) !important;
         color: var(--text-primary) !important;
         font-family: 'JetBrains Mono', monospace !important;
+        transition: border-color 0.3s ease !important;
+    }
+
+    .stSelectbox > div > div:hover {
+        border-color: var(--border-hover) !important;
     }
 
     /* Hide streamlit branding */
     #MainMenu, footer, header { visibility: hidden; }
 
-    /* Tabs */
+    /* =========================================================
+       Tabs - Clean with smooth indicator
+       ========================================================= */
     .stTabs [data-baseweb="tab-list"] {
         background: transparent;
         border-bottom: 1px solid var(--border);
@@ -538,27 +886,45 @@ st.markdown("""
         letter-spacing: 2px !important;
         text-transform: uppercase !important;
         padding: 16px 32px !important;
+        transition: color 0.3s var(--ease-out-expo) !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        color: rgba(0, 255, 65, 0.6) !important;
     }
 
     .stTabs [aria-selected="true"] {
         color: var(--matrix-green) !important;
         border-bottom: 2px solid var(--matrix-green) !important;
+        text-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
     }
 
-    /* Section dividers */
+    /* =========================================================
+       Section Dividers
+       ========================================================= */
     .section-divider {
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--matrix-green-dim), transparent);
+        background: linear-gradient(90deg,
+            transparent,
+            rgba(0, 255, 65, 0.15),
+            transparent);
         margin: 40px 0;
-        opacity: 0.5;
     }
 
-    /* Action box */
+    /* =========================================================
+       Action Box
+       ========================================================= */
     .action-box {
-        background: var(--surface);
-        border: 1px solid var(--accent);
+        background: rgba(0, 229, 255, 0.03);
+        border: 1px solid rgba(0, 229, 255, 0.15);
         padding: 16px 20px;
         margin-top: 16px;
+        transition: all 0.3s var(--ease-out-expo);
+    }
+
+    .action-box:hover {
+        border-color: rgba(0, 229, 255, 0.3);
+        background: rgba(0, 229, 255, 0.05);
     }
 
     .action-label {
@@ -568,6 +934,7 @@ st.markdown("""
         text-transform: uppercase;
         color: var(--accent) !important;
         margin-bottom: 8px;
+        opacity: 0.8;
     }
 
     .action-text {
@@ -576,14 +943,32 @@ st.markdown("""
         line-height: 1.5;
     }
 
-    /* PRIMARY SIGNAL PANEL - Hero Section */
+    /* =========================================================
+       Hero Panel - Premium with animated top glow
+       ========================================================= */
+    @keyframes hero-glow {
+        0%, 100% {
+            box-shadow: 0 -2px 20px rgba(0, 255, 65, 0.1);
+        }
+        50% {
+            box-shadow: 0 -2px 30px rgba(0, 255, 65, 0.2), 0 -2px 60px rgba(0, 255, 65, 0.05);
+        }
+    }
+
     .hero-panel {
-        background: linear-gradient(180deg, #001a00 0%, var(--oled-black) 100%);
-        border: 1px solid var(--matrix-green);
+        background: linear-gradient(180deg, rgba(0, 20, 0, 0.6) 0%, var(--oled-black) 100%);
+        border: 1px solid rgba(0, 255, 65, 0.2);
         padding: 0;
         margin-bottom: 32px;
         position: relative;
         overflow: hidden;
+        animation: fadeInUp 0.7s var(--ease-out-expo) 0.1s both,
+                   hero-glow 6s ease-in-out infinite;
+        transition: all 0.4s var(--ease-out-expo);
+    }
+
+    .hero-panel:hover {
+        border-color: rgba(0, 255, 65, 0.4);
     }
 
     .hero-panel::before {
@@ -593,8 +978,31 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 2px;
-        background: var(--matrix-green);
-        box-shadow: 0 0 20px var(--matrix-green), 0 0 40px var(--matrix-green);
+        background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(0, 255, 65, 0.4) 20%,
+            var(--matrix-green) 50%,
+            rgba(0, 255, 65, 0.4) 80%,
+            transparent 100%);
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+    }
+
+    /* Ambient light sweep on hero */
+    .hero-panel::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(0, 255, 65, 0.015),
+            transparent
+        );
+        animation: shimmer 8s ease-in-out infinite;
+        pointer-events: none;
     }
 
     .hero-label {
@@ -605,18 +1013,22 @@ st.markdown("""
         color: var(--matrix-green) !important;
         padding: 16px 24px 8px 24px;
         border-bottom: 1px solid var(--border);
-        background: rgba(0, 255, 65, 0.03);
+        background: rgba(0, 255, 65, 0.02);
+        opacity: 0.7;
     }
 
     .hero-content {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         gap: 0;
+        position: relative;
+        z-index: 1;
     }
 
     .hero-main {
         padding: 24px 32px;
         border-right: 1px solid var(--border);
+        animation: slideInLeft 0.6s var(--ease-out-expo) 0.3s both;
     }
 
     .hero-signal-type {
@@ -629,9 +1041,21 @@ st.markdown("""
         margin-bottom: 12px;
     }
 
-    .hero-signal-type.put { background: var(--negative); color: var(--oled-black); }
-    .hero-signal-type.call { background: var(--positive); color: var(--oled-black); }
-    .hero-signal-type.hedge { background: var(--warning); color: var(--oled-black); }
+    .hero-signal-type.put {
+        background: var(--negative);
+        color: var(--oled-black);
+        box-shadow: 0 0 12px rgba(255, 45, 85, 0.3);
+    }
+    .hero-signal-type.call {
+        background: var(--positive);
+        color: var(--oled-black);
+        box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
+    }
+    .hero-signal-type.hedge {
+        background: var(--warning);
+        color: var(--oled-black);
+        box-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
+    }
 
     .hero-symbol {
         font-family: 'JetBrains Mono', monospace !important;
@@ -655,6 +1079,7 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         justify-content: center;
+        animation: fadeInUp 0.6s var(--ease-out-expo) 0.4s both;
     }
 
     .hero-timing-label {
@@ -663,6 +1088,7 @@ st.markdown("""
         letter-spacing: 2px;
         color: var(--matrix-green) !important;
         margin-bottom: 8px;
+        opacity: 0.7;
     }
 
     .hero-timing-value {
@@ -677,6 +1103,7 @@ st.markdown("""
         font-size: 12px;
         color: var(--accent) !important;
         margin-top: 8px;
+        opacity: 0.8;
     }
 
     .hero-right {
@@ -684,6 +1111,7 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         justify-content: center;
+        animation: fadeInUp 0.6s var(--ease-out-expo) 0.5s both;
     }
 
     .hero-action-label {
@@ -692,6 +1120,7 @@ st.markdown("""
         letter-spacing: 2px;
         color: var(--accent) !important;
         margin-bottom: 8px;
+        opacity: 0.7;
     }
 
     .hero-action-text {
@@ -706,26 +1135,37 @@ st.markdown("""
         font-weight: 600;
         color: var(--accent) !important;
         margin-top: 12px;
+        text-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
     }
 
-    /* Market Overview Strip */
+    /* =========================================================
+       Market Overview Strip
+       ========================================================= */
     .market-strip {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
         gap: 0;
         background: var(--surface);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 1px solid var(--border);
         margin-bottom: 24px;
+        animation: fadeInUp 0.6s var(--ease-out-expo) 0.2s both;
     }
 
     .market-strip-item {
         padding: 16px 20px;
         border-right: 1px solid var(--border);
         text-align: center;
+        transition: background 0.3s var(--ease-out-expo);
     }
 
     .market-strip-item:last-child {
         border-right: none;
+    }
+
+    .market-strip-item:hover {
+        background: rgba(255, 255, 255, 0.015);
     }
 
     .market-strip-label {
@@ -742,6 +1182,7 @@ st.markdown("""
         font-size: 16px;
         font-weight: 600;
         color: var(--text-primary) !important;
+        transition: color 0.3s ease;
     }
 
     .market-strip-value.positive { color: var(--positive) !important; }
@@ -749,10 +1190,17 @@ st.markdown("""
     .market-strip-value.warning { color: var(--warning) !important; }
     .market-strip-value.accent { color: var(--accent) !important; }
 
-    /* No signal state */
+    /* =========================================================
+       No Signal State
+       ========================================================= */
     .no-signal-hero {
         padding: 40px;
         text-align: center;
+    }
+
+    @keyframes scan-line {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(300%); }
     }
 
     .no-signal-text {
@@ -760,10 +1208,141 @@ st.markdown("""
         font-size: 14px;
         color: var(--text-dim) !important;
         letter-spacing: 2px;
+        position: relative;
+    }
+
+    .no-signal-text::after {
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        width: 30%;
+        height: 1px;
+        background: var(--matrix-green);
+        animation: scan-line 3s var(--ease-in-out-quint) infinite;
+    }
+
+    /* =========================================================
+       Live Number Jitter Containers
+       ========================================================= */
+    .jitter-value {
+        display: inline-block;
+        font-variant-numeric: tabular-nums;
+        transition: transform 0.1s ease;
+    }
+
+    /* =========================================================
+       Noise texture overlay (ultra-subtle)
+       ========================================================= */
+    .noise-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+        opacity: 0.015;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+        background-size: 256px 256px;
     }
 </style>
 """, unsafe_allow_html=True)
 
+
+# =============================================================================
+# JAVASCRIPT - Live animations, number jitter, smooth clock
+# =============================================================================
+st.markdown("""
+<script>
+(function() {
+    'use strict';
+
+    // ---- Live Clock ----
+    function updateClock() {
+        const el = document.getElementById('live-clock');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        el.textContent = h + ':' + m + ':' + s;
+    }
+
+    // ---- Subtle Number Jitter ----
+    // Adds tiny variations to the last decimal of price values
+    function jitterNumbers() {
+        const els = document.querySelectorAll('.jitter-value');
+        els.forEach(function(el) {
+            const base = parseFloat(el.getAttribute('data-base'));
+            if (isNaN(base)) return;
+            // Tiny variation: +/- 0.01 to 0.03
+            const jitter = (Math.random() - 0.5) * 0.04;
+            const val = base + jitter;
+            el.textContent = '$' + val.toFixed(2);
+        });
+    }
+
+    // ---- Smooth Counter Animation ----
+    function animateCounters() {
+        const counters = document.querySelectorAll('.animate-count');
+        counters.forEach(function(el) {
+            if (el.getAttribute('data-animated') === 'true') return;
+            el.setAttribute('data-animated', 'true');
+            const target = parseInt(el.getAttribute('data-target'), 10);
+            if (isNaN(target)) return;
+            const duration = 1200;
+            const start = 0;
+            const startTime = performance.now();
+
+            function step(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out expo
+                const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+                const current = Math.round(start + (target - start) * eased);
+                el.textContent = current;
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                }
+            }
+            requestAnimationFrame(step);
+        });
+    }
+
+    // ---- Init ----
+    function init() {
+        // Clock update every second
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Number jitter every 2-4 seconds (randomized per tick)
+        setInterval(jitterNumbers, 2500);
+
+        // Animate counters on load
+        setTimeout(animateCounters, 300);
+    }
+
+    // Wait for DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        // Streamlit may re-render, so delay slightly
+        setTimeout(init, 200);
+    }
+})();
+</script>
+
+<!-- Subtle overlays -->
+<div class="scanline-overlay"></div>
+<div class="noise-overlay"></div>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
 def get_optimal_entry_time(signal):
     """Calculate optimal entry time based on signal type and market conditions."""
@@ -799,7 +1378,6 @@ def get_optimal_entry_time(signal):
         rationale = "Capture initial directional momentum before market digests overnight news."
         action = f"Enter {signal.symbol} straddle or strangle at current price level. Expect 3-5% move within 5 sessions."
 
-    # Calculate next occurrence
     next_window = get_next_window_time(now, window)
 
     return {
@@ -812,7 +1390,6 @@ def get_optimal_entry_time(signal):
 
 def get_next_window_time(now, window):
     """Determine when the next entry window occurs."""
-    # Parse window start time
     start_str = window.split(" - ")[0]
     is_pm = "PM" in window
     hour = int(start_str.split(":")[0])
@@ -823,15 +1400,13 @@ def get_next_window_time(now, window):
 
     window_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-    # Check if we're on weekend
     if now.weekday() >= 5:
         days_until_monday = 7 - now.weekday()
         next_date = now + timedelta(days=days_until_monday)
         return f"Next: Monday {next_date.strftime('%b %d')} at {start_str}"
 
-    # Check if window has passed today
     if now > window_time:
-        if now.weekday() == 4:  # Friday
+        if now.weekday() == 4:
             next_date = now + timedelta(days=3)
             return f"Next: Monday {next_date.strftime('%b %d')} at {start_str}"
         else:
@@ -863,20 +1438,23 @@ def run_scan(symbols, include_options=False):
     return screened, signals
 
 
+# =============================================================================
+# Main Dashboard
+# =============================================================================
+
 def main():
-    # Matrix Rain Background - numbers only
-    import random
+    # Matrix Rain Background - refined, fewer columns
     rain_columns = ""
     matrix_chars = "0123456789"
 
-    for i in range(60):
-        left = i * 1.7
-        duration = random.uniform(40, 100)
-        delay = random.uniform(0, 50)
-        text = "".join([random.choice(matrix_chars) + "\n" for _ in range(50)])
+    for i in range(35):
+        left = i * 2.9
+        duration = random.uniform(50, 120)
+        delay = random.uniform(0, 60)
+        text = "".join([random.choice(matrix_chars) + "\n" for _ in range(40)])
         rain_columns += f'<div class="rain-column" style="left:{left}%;animation-duration:{duration}s;animation-delay:-{delay}s;">{text}</div>'
 
-    st.markdown(f'''<div class="matrix-rain-container">{rain_columns}</div>''', unsafe_allow_html=True)
+    st.markdown(f'<div class="matrix-rain-container">{rain_columns}</div>', unsafe_allow_html=True)
 
     # Header
     now = datetime.now()
@@ -886,12 +1464,12 @@ def main():
     <div class="terminal-header">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-                <h1 class="terminal-title">VOLATILITY TERMINAL</h1>
+                <h1 class="terminal-title" data-text="VOLATILITY TERMINAL">VOLATILITY TERMINAL</h1>
                 <p class="terminal-subtitle">NASDAQ OPTIONS SIGNAL DETECTION</p>
             </div>
             <div style="text-align: right;">
                 <p class="terminal-time">{now.strftime("%Y.%m.%d")}</p>
-                <p class="terminal-time cursor-blink">{now.strftime("%H:%M:%S")} ET</p>
+                <p class="terminal-time cursor-blink"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</p>
                 <p class="terminal-subtitle" style="margin-top: 12px;">
                     <span class="status-dot {'active' if 'OPEN' in market_status else ''}"></span>{market_status}
                 </p>
@@ -930,40 +1508,37 @@ def main():
             st.error(f"SCAN ERROR: {e}")
             return
 
-    # Metrics
+    # Metrics with animated counters
     strong_signals = len([s for s in signals if s.strength.value >= 4])
 
     st.markdown(f"""
     <div class="metric-grid">
         <div class="metric-card">
             <div class="metric-label">Symbols Scanned</div>
-            <div class="metric-value">{len(symbols)}</div>
+            <div class="metric-value"><span class="animate-count" data-target="{len(symbols)}">{len(symbols)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Passed Filters</div>
-            <div class="metric-value">{len(screened)}</div>
+            <div class="metric-value"><span class="animate-count" data-target="{len(screened)}">{len(screened)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Active Signals</div>
-            <div class="metric-value">{len(signals)}</div>
+            <div class="metric-value"><span class="animate-count" data-target="{len(signals)}">{len(signals)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Strong Signals</div>
-            <div class="metric-value">{strong_signals}</div>
+            <div class="metric-value"><span class="animate-count" data-target="{strong_signals}">{strong_signals}</span></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     # PRIMARY SIGNAL HERO PANEL
-    # Find the strongest signal to feature
     put_signals = [s for s in signals if s.signal_type == SignalType.PUT_OPPORTUNITY]
     strong_puts = [s for s in put_signals if s.strength.value >= 4]
 
     if strong_puts:
-        # Sort by RSI (highest = most overbought = best put candidate)
         primary = max(strong_puts, key=lambda s: s.metrics.get('rsi', 0))
         primary_timing = get_optimal_entry_time(primary)
-
         signal_class = "put"
 
         st.markdown(f"""
@@ -973,7 +1548,7 @@ def main():
                 <div class="hero-main">
                     <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
                     <div class="hero-symbol">{primary.symbol}</div>
-                    <div class="hero-price">${primary.current_price:.2f}</div>
+                    <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
                 </div>
                 <div class="hero-center">
                     <div class="hero-timing-label">OPTIMAL ENTRY</div>
@@ -989,7 +1564,6 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     elif signals:
-        # Show strongest available signal if no strong puts
         primary = max(signals, key=lambda s: s.strength.value)
         primary_timing = get_optimal_entry_time(primary)
 
@@ -1014,7 +1588,7 @@ def main():
                 <div class="hero-main">
                     <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
                     <div class="hero-symbol">{primary.symbol}</div>
-                    <div class="hero-price">${primary.current_price:.2f}</div>
+                    <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
                 </div>
                 <div class="hero-center">
                     <div class="hero-timing-label">OPTIMAL ENTRY</div>
@@ -1040,7 +1614,6 @@ def main():
         """, unsafe_allow_html=True)
 
     # MARKET OVERVIEW STRIP
-    # Calculate aggregate metrics
     avg_rsi = sum(s.rsi for s in screened) / len(screened) if screened else 0
     overbought_count = len([s for s in screened if s.rsi > 70])
     oversold_count = len([s for s in screened if s.rsi < 30])
@@ -1095,7 +1668,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
         else:
-            for signal in signals:
+            for idx, signal in enumerate(signals):
                 signal_class = {
                     SignalType.PUT_OPPORTUNITY: "put",
                     SignalType.CALL_OPPORTUNITY: "call",
@@ -1105,15 +1678,16 @@ def main():
 
                 timing = get_optimal_entry_time(signal)
 
-                # Build metrics - handle None values
-                price_str = f"${signal.current_price:.2f}" if signal.current_price else "-"
+                price_str = f'<span class="jitter-value" data-base="{signal.current_price:.2f}">${signal.current_price:.2f}</span>' if signal.current_price else "-"
                 strike_str = f"${signal.suggested_strike:.2f}" if signal.suggested_strike else None
                 stop_str = f"${signal.stop_loss:.2f}" if signal.stop_loss else None
                 target_str = f"${signal.target_price:.2f}" if signal.target_price else None
                 rr_str = f"{signal.risk_reward_ratio:.1f}:1" if signal.risk_reward_ratio else None
 
-                # Render signal card with st.container for proper HTML
-                signal_html = f'''<div class="signal-card {signal_class}">
+                # Stagger animation delay
+                delay = 0.05 * idx
+
+                signal_html = f'''<div class="signal-card {signal_class}" style="animation-delay: {delay}s;">
                     <div class="signal-header">
                         <div style="display: flex; align-items: center; gap: 20px;">
                             <span class="signal-type {signal_class}">{signal.signal_type.value}</span>
@@ -1225,10 +1799,8 @@ def main():
             """, unsafe_allow_html=True)
 
     with tab3:
-        # TRACKER TAB - Prediction Performance
         tracker = PredictionTracker()
 
-        # Save current signals to tracker (if not already saved)
         for signal in signals:
             if not tracker.check_duplicate(signal.symbol, signal.signal_type.value, hours=24):
                 tracker.record_signal(
@@ -1242,15 +1814,12 @@ def main():
                     expiry_days=30
                 )
 
-        # Update pending predictions with current prices
         price_data = {s.symbol: s.current_price for s in screened}
         tracker.check_and_update_predictions(price_data)
         tracker.expire_old_predictions()
 
-        # Get statistics
         stats = tracker.get_statistics()
 
-        # Stats header
         st.markdown(f"""
         <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important;
                    letter-spacing: 3px; margin: 0 0 24px 0; font-weight: 600;">
@@ -1260,24 +1829,23 @@ def main():
         <div class="metric-grid">
             <div class="metric-card">
                 <div class="metric-label">Total Predictions</div>
-                <div class="metric-value">{stats['total_predictions']}</div>
+                <div class="metric-value"><span class="animate-count" data-target="{stats['total_predictions']}">{stats['total_predictions']}</span></div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Win Rate</div>
-                <div class="metric-value" style="color: {'#00ff41' if stats['win_rate'] >= 50 else '#ff0040'} !important;">{stats['win_rate']:.1f}%</div>
+                <div class="metric-value" style="color: {'#00ff41' if stats['win_rate'] >= 50 else '#ff2d55'} !important;">{stats['win_rate']:.1f}%</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Wins / Losses</div>
-                <div class="metric-value"><span style="color: #00ff41;">{stats['wins']}</span> / <span style="color: #ff0040;">{stats['losses']}</span></div>
+                <div class="metric-value"><span style="color: #00ff41;">{stats['wins']}</span> / <span style="color: #ff2d55;">{stats['losses']}</span></div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Pending</div>
-                <div class="metric-value" style="color: #00ffff !important;">{stats['pending']}</div>
+                <div class="metric-value" style="color: #00e5ff !important;">{stats['pending']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # Detailed stats
         st.markdown(f"""
         <div class="metric-grid" style="margin-top: 16px;">
             <div class="metric-card">
@@ -1301,7 +1869,6 @@ def main():
         <div class="section-divider"></div>
         """, unsafe_allow_html=True)
 
-        # Performance by signal type
         if stats['by_signal_type']:
             st.markdown("""
             <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
@@ -1312,14 +1879,14 @@ def main():
 
             type_rows = ""
             for sig_type, data in stats['by_signal_type'].items():
-                color = "#ff0040" if "PUT" in sig_type else "#00ff41" if "CALL" in sig_type else "#ffaa00"
+                color = "#ff2d55" if "PUT" in sig_type else "#00ff41" if "CALL" in sig_type else "#ffcc00"
                 type_rows += f"""
                 <tr>
                     <td style="color: {color}; font-weight: 600;">{sig_type}</td>
                     <td>{data['total']}</td>
                     <td class="positive">{data['wins']}</td>
                     <td class="negative">{data['losses']}</td>
-                    <td style="color: {'#00ff41' if data['win_rate'] >= 50 else '#ff0040'};">{data['win_rate']:.1f}%</td>
+                    <td style="color: {'#00ff41' if data['win_rate'] >= 50 else '#ff2d55'};">{data['win_rate']:.1f}%</td>
                 </tr>
                 """
 
@@ -1342,7 +1909,6 @@ def main():
 
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-        # Recent predictions table
         st.markdown("""
         <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
                    letter-spacing: 2px; margin: 24px 0 16px 0; font-weight: 600;">
@@ -1357,13 +1923,13 @@ def main():
             for pred in predictions:
                 status_color = {
                     PredictionStatus.WIN: "#00ff41",
-                    PredictionStatus.LOSS: "#ff0040",
-                    PredictionStatus.PENDING: "#00ffff",
-                    PredictionStatus.EXPIRED: "#555555",
-                    PredictionStatus.CANCELLED: "#555555"
+                    PredictionStatus.LOSS: "#ff2d55",
+                    PredictionStatus.PENDING: "#00e5ff",
+                    PredictionStatus.EXPIRED: "#4a4a4a",
+                    PredictionStatus.CANCELLED: "#4a4a4a"
                 }.get(pred.status, "#ffffff")
 
-                signal_color = "#ff0040" if "PUT" in pred.signal_type else "#00ff41" if "CALL" in pred.signal_type else "#ffaa00"
+                signal_color = "#ff2d55" if "PUT" in pred.signal_type else "#00ff41" if "CALL" in pred.signal_type else "#ffcc00"
 
                 profit_display = f"{pred.profit_pct:+.1f}%" if pred.profit_pct is not None else "-"
                 profit_class = "positive" if pred.profit_pct and pred.profit_pct > 0 else "negative" if pred.profit_pct and pred.profit_pct < 0 else ""
@@ -1413,7 +1979,6 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
-        # Manual resolution form
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
         st.markdown("""
         <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
@@ -1452,21 +2017,19 @@ def main():
             """, unsafe_allow_html=True)
 
     with tab4:
-        # Documentation - Signal Types
         doc_signal_types = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">SIGNAL TYPES</h3>
 <table class="data-table">
 <thead><tr><th>Type</th><th>Trigger Conditions</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td style="color: #ff0040; font-weight: 600;">PUT</td><td>RSI above 70, price above upper Bollinger Band, elevated ATR</td><td>Buy put options, anticipate mean reversion</td></tr>
+<tr><td style="color: #ff2d55; font-weight: 600;">PUT</td><td>RSI above 70, price above upper Bollinger Band, elevated ATR</td><td>Buy put options, anticipate mean reversion</td></tr>
 <tr><td style="color: #00ff41; font-weight: 600;">CALL</td><td>RSI below 30, price below lower Bollinger Band</td><td>Buy call options, anticipate oversold bounce</td></tr>
-<tr><td style="color: #ffaa00; font-weight: 600;">HEDGE</td><td>Volatility regime HIGH or EXTREME, HV rank above 80</td><td>Buy protective puts on existing positions</td></tr>
+<tr><td style="color: #ffcc00; font-weight: 600;">HEDGE</td><td>Volatility regime HIGH or EXTREME, HV rank above 80</td><td>Buy protective puts on existing positions</td></tr>
 </tbody>
 </table>'''
         st.markdown(doc_signal_types, unsafe_allow_html=True)
 
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-        # Documentation - Entry Timing
         doc_timing = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">ENTRY TIMING METHODOLOGY</h3>
 <table class="data-table">
 <thead><tr><th>Signal</th><th>Window</th><th>Logic</th></tr></thead>
@@ -1482,7 +2045,6 @@ def main():
 
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-        # Documentation - Indicators
         doc_indicators = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">INDICATOR DEFINITIONS</h3>
 <table class="data-table">
 <thead><tr><th>Indicator</th><th>Definition</th><th>Signal Threshold</th></tr></thead>
@@ -1497,8 +2059,7 @@ def main():
 
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
-        # Disclaimer
-        doc_disclaimer = '''<p style="font-size: 10px; color: #555; letter-spacing: 1px; line-height: 2; margin-top: 40px;">
+        doc_disclaimer = '''<p style="font-size: 10px; color: #4a4a4a; letter-spacing: 1px; line-height: 2; margin-top: 40px;">
 This terminal provides analytical signals for informational purposes only and does not constitute financial advice. Options trading involves substantial risk of loss. Past performance does not guarantee future results. Conduct independent research and consider consulting a licensed financial advisor before making investment decisions.
 </p>'''
         st.markdown(doc_disclaimer, unsafe_allow_html=True)
@@ -1506,11 +2067,11 @@ This terminal provides analytical signals for informational purposes only and do
     # Footer
     st.markdown(f"""
     <div class="section-divider"></div>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0;">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #222; letter-spacing: 2px;">
-            VOLATILITY TERMINAL v2.0
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; animation: fadeIn 1s var(--ease-out-expo) 0.8s both;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #1a1a1a; letter-spacing: 2px;">
+            VOLATILITY TERMINAL v3.0
         </span>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #222; letter-spacing: 2px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #1a1a1a; letter-spacing: 2px;">
             DATA SOURCE: ALPACA MARKETS API
         </span>
     </div>
