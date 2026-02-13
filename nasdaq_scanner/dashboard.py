@@ -1248,6 +1248,81 @@ st.markdown("""
         background-repeat: repeat;
         background-size: 256px 256px;
     }
+
+    /* =========================================================
+       Streamlit Cloud Overrides - Force colors with max specificity
+       ========================================================= */
+    .stApp .main .block-container .stMarkdown .terminal-title,
+    .stApp .terminal-title,
+    [data-testid="stMarkdownContainer"] .terminal-title {
+        color: #00ff41 !important;
+        text-shadow: 0 0 10px rgba(0, 255, 65, 0.4) !important;
+    }
+
+    .stApp .metric-value,
+    [data-testid="stMarkdownContainer"] .metric-value {
+        color: #00ff41 !important;
+    }
+
+    .stApp .terminal-time,
+    [data-testid="stMarkdownContainer"] .terminal-time {
+        color: #00ff41 !important;
+    }
+
+    .stApp .hero-label,
+    .stApp .timing-label,
+    .stApp .signal-strength,
+    .stApp .hero-timing-label {
+        color: #00ff41 !important;
+    }
+
+    .stApp .hero-timing-next,
+    .stApp .timing-countdown,
+    .stApp .action-label,
+    .stApp .hero-action-label,
+    .stApp .hero-strike {
+        color: #00e5ff !important;
+    }
+
+    .stApp .signal-metric-value.positive,
+    .stApp .market-strip-value.positive,
+    .stApp .data-table td.positive {
+        color: #00ff41 !important;
+    }
+
+    .stApp .signal-metric-value.negative,
+    .stApp .market-strip-value.negative,
+    .stApp .data-table td.negative {
+        color: #ff2d55 !important;
+    }
+
+    .stApp .signal-metric-value.accent {
+        color: #00e5ff !important;
+    }
+
+    .stApp .market-strip-value.warning {
+        color: #ffcc00 !important;
+    }
+
+    .stApp .metric-label,
+    .stApp .signal-metric-label,
+    .stApp .market-strip-label,
+    .stApp .terminal-subtitle,
+    .stApp .timing-note,
+    .stApp .signal-rationale {
+        color: #4a4a4a !important;
+    }
+
+    .stApp .hero-symbol,
+    .stApp .signal-symbol,
+    .stApp .timing-value,
+    .stApp .hero-timing-value,
+    .stApp .action-text,
+    .stApp .hero-action-text,
+    .stApp .signal-metric-value,
+    .stApp .market-strip-value {
+        color: #f0f0f0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1451,12 +1526,12 @@ def main():
     <div class="terminal-header">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-                <h1 class="terminal-title" data-text="VOLATILITY TERMINAL">VOLATILITY TERMINAL</h1>
+                <h1 class="terminal-title" data-text="VOLATILITY TERMINAL" style="color: #00ff41 !important; text-shadow: 0 0 10px rgba(0,255,65,0.4);">VOLATILITY TERMINAL</h1>
                 <p class="terminal-subtitle">NASDAQ OPTIONS SIGNAL DETECTION</p>
             </div>
             <div style="text-align: right;">
-                <p class="terminal-time">{now.strftime("%Y.%m.%d")}</p>
-                <p class="terminal-time cursor-blink"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</p>
+                <p class="terminal-time" style="color: #00ff41;">{now.strftime("%Y.%m.%d")}</p>
+                <p class="terminal-time cursor-blink" style="color: #00ff41;"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</p>
                 <p class="terminal-subtitle" style="margin-top: 12px;">
                     <span class="status-dot {'active' if 'OPEN' in market_status else ''}"></span>{market_status}
                 </p>
@@ -1502,19 +1577,19 @@ def main():
     <div class="metric-grid">
         <div class="metric-card">
             <div class="metric-label">Symbols Scanned</div>
-            <div class="metric-value"><span class="animate-count" data-target="{len(symbols)}">{len(symbols)}</span></div>
+            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(symbols)}">{len(symbols)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Passed Filters</div>
-            <div class="metric-value"><span class="animate-count" data-target="{len(screened)}">{len(screened)}</span></div>
+            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(screened)}">{len(screened)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Active Signals</div>
-            <div class="metric-value"><span class="animate-count" data-target="{len(signals)}">{len(signals)}</span></div>
+            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(signals)}">{len(signals)}</span></div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Strong Signals</div>
-            <div class="metric-value"><span class="animate-count" data-target="{strong_signals}">{strong_signals}</span></div>
+            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{strong_signals}">{strong_signals}</span></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1530,7 +1605,7 @@ def main():
 
         st.markdown(f"""
         <div class="hero-panel">
-            <div class="hero-label">PRIMARY SIGNAL</div>
+            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
             <div class="hero-content">
                 <div class="hero-main">
                     <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
@@ -1538,14 +1613,14 @@ def main():
                     <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
                 </div>
                 <div class="hero-center">
-                    <div class="hero-timing-label">OPTIMAL ENTRY</div>
+                    <div class="hero-timing-label" style="color: #00ff41;">OPTIMAL ENTRY</div>
                     <div class="hero-timing-value">{primary_timing['window']}</div>
-                    <div class="hero-timing-next">{primary_timing['next']}</div>
+                    <div class="hero-timing-next" style="color: #00e5ff;">{primary_timing['next']}</div>
                 </div>
                 <div class="hero-right">
-                    <div class="hero-action-label">ACTION</div>
+                    <div class="hero-action-label" style="color: #00e5ff;">ACTION</div>
                     <div class="hero-action-text">Buy puts at strike</div>
-                    <div class="hero-strike">${primary.suggested_strike:.2f}</div>
+                    <div class="hero-strike" style="color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,0.2);">${primary.suggested_strike:.2f}</div>
                 </div>
             </div>
         </div>
@@ -1570,7 +1645,7 @@ def main():
 
         st.markdown(f"""
         <div class="hero-panel">
-            <div class="hero-label">PRIMARY SIGNAL</div>
+            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
             <div class="hero-content">
                 <div class="hero-main">
                     <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
@@ -1578,14 +1653,14 @@ def main():
                     <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
                 </div>
                 <div class="hero-center">
-                    <div class="hero-timing-label">OPTIMAL ENTRY</div>
+                    <div class="hero-timing-label" style="color: #00ff41;">OPTIMAL ENTRY</div>
                     <div class="hero-timing-value">{primary_timing['window']}</div>
-                    <div class="hero-timing-next">{primary_timing['next']}</div>
+                    <div class="hero-timing-next" style="color: #00e5ff;">{primary_timing['next']}</div>
                 </div>
                 <div class="hero-right">
-                    <div class="hero-action-label">ACTION</div>
+                    <div class="hero-action-label" style="color: #00e5ff;">ACTION</div>
                     <div class="hero-action-text">{action_text}</div>
-                    <div class="hero-strike">${primary.suggested_strike:.2f}</div>
+                    <div class="hero-strike" style="color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,0.2);">${primary.suggested_strike:.2f}</div>
                 </div>
             </div>
         </div>
@@ -1593,7 +1668,7 @@ def main():
     else:
         st.markdown("""
         <div class="hero-panel">
-            <div class="hero-label">PRIMARY SIGNAL</div>
+            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
             <div class="no-signal-hero">
                 <div class="no-signal-text">SCANNING FOR OPPORTUNITIES...</div>
             </div>
@@ -1680,7 +1755,7 @@ def main():
                             <span class="signal-type {signal_class}">{signal.signal_type.value}</span>
                             <span class="signal-symbol">{signal.symbol}</span>
                         </div>
-                        <div class="signal-strength">{format_strength(signal.strength.value)}</div>
+                        <div class="signal-strength" style="color: #00ff41;">{format_strength(signal.strength.value)}</div>
                     </div>
                     <div class="signal-body">
                         <div class="signal-grid">
@@ -1720,13 +1795,13 @@ def main():
                 signal_html += f'''
                         </div>
                         <div class="timing-box">
-                            <div class="timing-label">OPTIMAL ENTRY WINDOW</div>
+                            <div class="timing-label" style="color: #00ff41;">OPTIMAL ENTRY WINDOW</div>
                             <div class="timing-value">{timing['window']}</div>
-                            <div class="timing-countdown">{timing['next']}</div>
+                            <div class="timing-countdown" style="color: #00e5ff;">{timing['next']}</div>
                             <div class="timing-note">{timing['rationale']}</div>
                         </div>
                         <div class="action-box">
-                            <div class="action-label">RECOMMENDED ACTION</div>
+                            <div class="action-label" style="color: #00e5ff;">RECOMMENDED ACTION</div>
                             <div class="action-text">{timing['action']}</div>
                         </div>
                         <div class="signal-rationale">
@@ -1816,7 +1891,7 @@ def main():
         <div class="metric-grid">
             <div class="metric-card">
                 <div class="metric-label">Total Predictions</div>
-                <div class="metric-value"><span class="animate-count" data-target="{stats['total_predictions']}">{stats['total_predictions']}</span></div>
+                <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{stats['total_predictions']}">{stats['total_predictions']}</span></div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Win Rate</div>
@@ -1824,7 +1899,7 @@ def main():
             </div>
             <div class="metric-card">
                 <div class="metric-label">Wins / Losses</div>
-                <div class="metric-value"><span style="color: #00ff41;">{stats['wins']}</span> / <span style="color: #ff2d55;">{stats['losses']}</span></div>
+                <div class="metric-value" style="color: #00ff41;"><span style="color: #00ff41;">{stats['wins']}</span> / <span style="color: #ff2d55;">{stats['losses']}</span></div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Pending</div>
@@ -1845,11 +1920,11 @@ def main():
             </div>
             <div class="metric-card">
                 <div class="metric-label">Profit Factor</div>
-                <div class="metric-value">{stats['profit_factor']:.2f}</div>
+                <div class="metric-value" style="color: #00ff41;">{stats['profit_factor']:.2f}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Last 30 Days</div>
-                <div class="metric-value">{stats['recent_30d']['win_rate']:.0f}%</div>
+                <div class="metric-value" style="color: #00ff41;">{stats['recent_30d']['win_rate']:.0f}%</div>
             </div>
         </div>
 
