@@ -1524,7 +1524,7 @@ def main():
     strong_puts = [s for s in put_signals if s.strength.value >= 4]
 
     if strong_puts:
-        primary = max(strong_puts, key=lambda s: s.metrics.get('rsi', 0))
+        primary = max(strong_puts, key=lambda s: s.key_metrics.get('rsi', 0))
         primary_timing = get_optimal_entry_time(primary)
         signal_class = "put"
 
