@@ -1,6 +1,6 @@
 # NASDAQ Volatility Scanner - Dependencies
 streamlit>=1.30.0
-alpaca-trade-api>=3.0.0
+alpaca-py>=0.21.0
 yfinance>=0.2.36
 pandas>=2.0.0
 numpy>=1.24.0
