@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -1251,57 +1252,58 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# =============================================================================
-# JAVASCRIPT - Live animations, number jitter, smooth clock
-# =============================================================================
+# Subtle overlays (no script tags in st.markdown — Streamlit strips them)
 st.markdown("""
+<div class="scanline-overlay"></div>
+<div class="noise-overlay"></div>
+""", unsafe_allow_html=True)
+
+# JavaScript via components.html — this is the only way to run JS in Streamlit
+components.html("""
 <script>
 (function() {
     'use strict';
+    var parent = window.parent.document;
 
     // ---- Live Clock ----
     function updateClock() {
-        const el = document.getElementById('live-clock');
+        var el = parent.getElementById('live-clock');
         if (!el) return;
-        const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
+        var now = new Date();
+        var h = String(now.getHours()).padStart(2, '0');
+        var m = String(now.getMinutes()).padStart(2, '0');
+        var s = String(now.getSeconds()).padStart(2, '0');
         el.textContent = h + ':' + m + ':' + s;
     }
 
     // ---- Subtle Number Jitter ----
-    // Adds tiny variations to the last decimal of price values
     function jitterNumbers() {
-        const els = document.querySelectorAll('.jitter-value');
+        var els = parent.querySelectorAll('.jitter-value');
         els.forEach(function(el) {
-            const base = parseFloat(el.getAttribute('data-base'));
+            var base = parseFloat(el.getAttribute('data-base'));
             if (isNaN(base)) return;
-            // Tiny variation: +/- 0.01 to 0.03
-            const jitter = (Math.random() - 0.5) * 0.04;
-            const val = base + jitter;
+            var jitter = (Math.random() - 0.5) * 0.04;
+            var val = base + jitter;
             el.textContent = '$' + val.toFixed(2);
         });
     }
 
     // ---- Smooth Counter Animation ----
     function animateCounters() {
-        const counters = document.querySelectorAll('.animate-count');
+        var counters = parent.querySelectorAll('.animate-count');
         counters.forEach(function(el) {
             if (el.getAttribute('data-animated') === 'true') return;
             el.setAttribute('data-animated', 'true');
-            const target = parseInt(el.getAttribute('data-target'), 10);
-            if (isNaN(target)) return;
-            const duration = 1200;
-            const start = 0;
-            const startTime = performance.now();
+            var target = parseInt(el.getAttribute('data-target'), 10);
+            if (isNaN(target) || target === 0) return;
+            var duration = 1200;
+            var startTime = performance.now();
 
             function step(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                // Ease out expo
-                const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-                const current = Math.round(start + (target - start) * eased);
+                var elapsed = currentTime - startTime;
+                var progress = Math.min(elapsed / duration, 1);
+                var eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+                var current = Math.round(target * eased);
                 el.textContent = current;
                 if (progress < 1) {
                     requestAnimationFrame(step);
@@ -1313,31 +1315,16 @@ st.markdown("""
 
     // ---- Init ----
     function init() {
-        // Clock update every second
         setInterval(updateClock, 1000);
         updateClock();
-
-        // Number jitter every 2-4 seconds (randomized per tick)
         setInterval(jitterNumbers, 2500);
-
-        // Animate counters on load
         setTimeout(animateCounters, 300);
     }
 
-    // Wait for DOM
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        // Streamlit may re-render, so delay slightly
-        setTimeout(init, 200);
-    }
+    setTimeout(init, 500);
 })();
 </script>
-
-<!-- Subtle overlays -->
-<div class="scanline-overlay"></div>
-<div class="noise-overlay"></div>
-""", unsafe_allow_html=True)
+""", height=0)
 
 
 # =============================================================================

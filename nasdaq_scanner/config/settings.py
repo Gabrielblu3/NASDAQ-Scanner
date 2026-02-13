@@ -44,8 +44,19 @@ class Settings:
     watchlist: list = field(default_factory=list)
 
     @classmethod
+    def _get_secret(cls, key: str, default: str = "") -> str:
+        """Get a secret from Streamlit secrets (cloud) or env vars (local)."""
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and key in st.secrets:
+                return str(st.secrets[key])
+        except Exception:
+            pass
+        return os.getenv(key, default)
+
+    @classmethod
     def load(cls, env_path: Optional[Path] = None) -> "Settings":
-        """Load settings from environment variables."""
+        """Load settings from Streamlit secrets or environment variables."""
         if env_path:
             load_dotenv(env_path)
         else:
@@ -53,21 +64,21 @@ class Settings:
 
         return cls(
             # Alpaca API
-            alpaca_api_key=os.getenv("ALPACA_API_KEY", ""),
-            alpaca_secret_key=os.getenv("ALPACA_SECRET_KEY", ""),
-            alpaca_base_url=os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
+            alpaca_api_key=cls._get_secret("ALPACA_API_KEY"),
+            alpaca_secret_key=cls._get_secret("ALPACA_SECRET_KEY"),
+            alpaca_base_url=cls._get_secret("ALPACA_BASE_URL", "https://paper-api.alpaca.markets"),
 
             # Webhooks
-            discord_webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
-            slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
+            discord_webhook_url=cls._get_secret("DISCORD_WEBHOOK_URL") or None,
+            slack_webhook_url=cls._get_secret("SLACK_WEBHOOK_URL") or None,
 
             # Thresholds (with env overrides)
-            iv_rank_threshold=float(os.getenv("IV_RANK_THRESHOLD", "50")),
-            rsi_overbought=float(os.getenv("RSI_OVERBOUGHT", "70")),
-            rsi_oversold=float(os.getenv("RSI_OVERSOLD", "30")),
-            atr_percentile_min=float(os.getenv("ATR_PERCENTILE_MIN", "70")),
-            min_market_cap=float(os.getenv("MIN_MARKET_CAP", "1000000000")),
-            min_avg_volume=int(os.getenv("MIN_AVG_VOLUME", "1000000")),
+            iv_rank_threshold=float(cls._get_secret("IV_RANK_THRESHOLD", "50")),
+            rsi_overbought=float(cls._get_secret("RSI_OVERBOUGHT", "70")),
+            rsi_oversold=float(cls._get_secret("RSI_OVERSOLD", "30")),
+            atr_percentile_min=float(cls._get_secret("ATR_PERCENTILE_MIN", "70")),
+            min_market_cap=float(cls._get_secret("MIN_MARKET_CAP", "1000000000")),
+            min_avg_volume=int(cls._get_secret("MIN_AVG_VOLUME", "1000000")),
         )
 
     def validate(self) -> list[str]:
