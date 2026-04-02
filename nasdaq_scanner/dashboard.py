@@ -109,7 +109,14 @@ st.markdown("""
     /* =========================================================
        Typography
        ========================================================= */
-    h1, h2, h3, h4, h5, h6, p, span, div, label {
+    /* Text defaults — scoped to avoid breaking Streamlit widget icons */
+    h1, h2, h3, h4, h5, h6, p, label {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* Apply to our rendered HTML content, not widget internals */
+    .stMarkdown span, .stMarkdown div {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: var(--text-primary) !important;
     }
@@ -618,6 +625,12 @@ st.markdown("""
 
     .stButton > button:hover {
         opacity: 0.85 !important;
+    }
+
+    /* Ensure button label text stays white on dark background */
+    .stButton > button p,
+    .stButton > button span {
+        color: white !important;
     }
 
     .stSelectbox > div > div {
