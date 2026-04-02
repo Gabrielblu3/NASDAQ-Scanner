@@ -57,6 +57,10 @@ class TradingSignal:
     suggested_expiry_days: int = 30
     suggested_delta: float = -0.30
 
+    # Educational data
+    scoring_breakdown: list = None
+    greeks: object = None
+
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
@@ -75,6 +79,7 @@ class TradingSignal:
             "risk_reward_ratio": self.risk_reward_ratio,
             "suggested_expiry_days": self.suggested_expiry_days,
             "suggested_delta": self.suggested_delta,
+            "scoring_breakdown": self.scoring_breakdown,
         }
 
 
@@ -151,40 +156,56 @@ class SignalGenerator:
         """
         conditions_met = 0
         rationale_parts = []
+        scoring_breakdown = []
 
         # RSI overbought
         if stock.rsi > self.config.rsi_overbought:
             conditions_met += 2
             rationale_parts.append(f"RSI overbought at {stock.rsi:.1f}")
+            scoring_breakdown.append({"condition": "RSI overbought", "value": f"{stock.rsi:.1f}", "points": 2})
 
         # IV Rank elevated
         if stock.iv_rank and stock.iv_rank > 50:
             conditions_met += 1
             rationale_parts.append(f"IV Rank elevated at {stock.iv_rank:.1f}")
+            scoring_breakdown.append({"condition": "IV Rank elevated", "value": f"{stock.iv_rank:.1f}", "points": 1})
 
         # Price above upper BB
         if stock.bb_pband > 1:
             conditions_met += 2
             rationale_parts.append("Price above upper Bollinger Band")
+            scoring_breakdown.append({"condition": "Price above upper Bollinger Band", "value": f"{stock.bb_pband:.2f}", "points": 2})
         elif stock.bb_pband > 0.8:
             conditions_met += 1
             rationale_parts.append("Price near upper Bollinger Band")
+            scoring_breakdown.append({"condition": "Price near upper Bollinger Band", "value": f"{stock.bb_pband:.2f}", "points": 1})
 
         # High volatility
         if stock.atr_percentile > 80:
             conditions_met += 1
             rationale_parts.append(f"High volatility (ATR %ile: {stock.atr_percentile:.0f})")
+            scoring_breakdown.append({"condition": "High ATR percentile", "value": f"{stock.atr_percentile:.0f}%", "points": 1})
 
         # Need at least 3 conditions for a signal
         if conditions_met < 3:
             return None
 
         # Calculate suggested strike and levels
+        vol = stock.implied_volatility or stock.historical_volatility
         suggested_strike = OptionsGreeks.suggest_strike_for_put(
             current_price=stock.current_price,
             target_delta=-0.30,
-            volatility=stock.implied_volatility or stock.historical_volatility,
+            volatility=vol,
             days_to_expiry=30,
+        )
+
+        # Compute Greeks for educational display
+        greeks = OptionsGreeks.calculate_greeks(
+            spot=stock.current_price,
+            strike=suggested_strike,
+            time_to_expiry=30 / 365,
+            volatility=vol,
+            is_call=False,
         )
 
         # Stop loss at price going 5% against
@@ -221,6 +242,8 @@ class SignalGenerator:
             risk_reward_ratio=round(rr_ratio, 2),
             suggested_expiry_days=30,
             suggested_delta=-0.30,
+            scoring_breakdown=scoring_breakdown,
+            greeks=greeks,
         )
 
     def _check_call_opportunity(self, stock: ScreenedStock) -> Optional[TradingSignal]:
@@ -234,30 +257,45 @@ class SignalGenerator:
         """
         conditions_met = 0
         rationale_parts = []
+        scoring_breakdown = []
 
         # RSI oversold
         if stock.rsi < self.config.rsi_oversold:
             conditions_met += 2
             rationale_parts.append(f"RSI oversold at {stock.rsi:.1f}")
+            scoring_breakdown.append({"condition": "RSI oversold", "value": f"{stock.rsi:.1f}", "points": 2})
 
         # IV Rank elevated (good for selling puts = bullish)
         if stock.iv_rank and stock.iv_rank > 60:
             conditions_met += 1
             rationale_parts.append(f"IV Rank elevated at {stock.iv_rank:.1f}")
+            scoring_breakdown.append({"condition": "IV Rank elevated", "value": f"{stock.iv_rank:.1f}", "points": 1})
 
         # Price below lower BB
         if stock.bb_pband < 0:
             conditions_met += 2
             rationale_parts.append("Price below lower Bollinger Band")
+            scoring_breakdown.append({"condition": "Price below lower Bollinger Band", "value": f"{stock.bb_pband:.2f}", "points": 2})
         elif stock.bb_pband < 0.2:
             conditions_met += 1
             rationale_parts.append("Price near lower Bollinger Band")
+            scoring_breakdown.append({"condition": "Price near lower Bollinger Band", "value": f"{stock.bb_pband:.2f}", "points": 1})
 
         if conditions_met < 3:
             return None
 
         # For calls, suggest ATM or slightly OTM strike
         suggested_strike = round(stock.current_price * 1.02, 2)
+        vol = stock.implied_volatility or stock.historical_volatility
+
+        # Compute Greeks for educational display
+        greeks = OptionsGreeks.calculate_greeks(
+            spot=stock.current_price,
+            strike=suggested_strike,
+            time_to_expiry=45 / 365,
+            volatility=vol,
+            is_call=True,
+        )
 
         stop_loss = stock.current_price * 0.95
         target_price = stock.current_price * 1.10
@@ -288,6 +326,8 @@ class SignalGenerator:
             risk_reward_ratio=round(rr_ratio, 2),
             suggested_expiry_days=45,
             suggested_delta=0.30,
+            scoring_breakdown=scoring_breakdown,
+            greeks=greeks,
         )
 
     def _check_hedge_signal(self, stock: ScreenedStock) -> Optional[TradingSignal]:
@@ -301,27 +341,40 @@ class SignalGenerator:
         """
         conditions_met = 0
         rationale_parts = []
+        scoring_breakdown = []
 
         # Extreme volatility regime
         if stock.volatility_regime in ("high", "extreme"):
             conditions_met += 2
             rationale_parts.append(f"Volatility regime: {stock.volatility_regime}")
+            scoring_breakdown.append({"condition": f"Volatility regime: {stock.volatility_regime}", "value": stock.volatility_regime, "points": 2})
 
         # Very high IV rank
         if stock.iv_rank and stock.iv_rank > 80:
             conditions_met += 2
             rationale_parts.append(f"Very high IV Rank: {stock.iv_rank:.1f}")
+            scoring_breakdown.append({"condition": "Very high IV Rank", "value": f"{stock.iv_rank:.1f}", "points": 2})
 
         # High HV rank
         if stock.hv_rank > 80:
             conditions_met += 1
             rationale_parts.append(f"High HV Rank: {stock.hv_rank:.1f}")
+            scoring_breakdown.append({"condition": "High HV Rank", "value": f"{stock.hv_rank:.1f}", "points": 1})
 
         if conditions_met < 3:
             return None
 
         # Hedge: suggest deep OTM put
         suggested_strike = round(stock.current_price * 0.90, 2)
+        vol = stock.implied_volatility or stock.historical_volatility
+
+        greeks = OptionsGreeks.calculate_greeks(
+            spot=stock.current_price,
+            strike=suggested_strike,
+            time_to_expiry=45 / 365,
+            volatility=vol,
+            is_call=False,
+        )
 
         strength = self._calculate_strength(conditions_met)
 
@@ -345,6 +398,8 @@ class SignalGenerator:
             risk_reward_ratio=None,
             suggested_expiry_days=45,
             suggested_delta=-0.15,  # Deep OTM for hedges
+            scoring_breakdown=scoring_breakdown,
+            greeks=greeks,
         )
 
     def _check_volatility_play(self, stock: ScreenedStock) -> Optional[TradingSignal]:
@@ -357,24 +412,37 @@ class SignalGenerator:
         """
         conditions_met = 0
         rationale_parts = []
+        scoring_breakdown = []
 
         # Very high realized volatility
         if stock.atr_percentile > 90:
             conditions_met += 2
             rationale_parts.append(f"Very high ATR percentile: {stock.atr_percentile:.0f}")
+            scoring_breakdown.append({"condition": "Very high ATR percentile", "value": f"{stock.atr_percentile:.0f}%", "points": 2})
 
         # But relatively low IV (options cheap)
         if stock.iv_rank and stock.iv_rank < 30:
             conditions_met += 2
             rationale_parts.append(f"Low IV Rank: {stock.iv_rank:.1f} (options cheap)")
+            scoring_breakdown.append({"condition": "Low IV Rank (cheap options)", "value": f"{stock.iv_rank:.1f}", "points": 2})
 
         # Wide BB (high volatility visible)
         if stock.bb_width > 10:
             conditions_met += 1
             rationale_parts.append(f"Wide Bollinger Bands: {stock.bb_width:.1f}%")
+            scoring_breakdown.append({"condition": "Wide Bollinger Bands", "value": f"{stock.bb_width:.1f}%", "points": 1})
 
         if conditions_met < 3:
             return None
+
+        vol = stock.implied_volatility or stock.historical_volatility
+        greeks = OptionsGreeks.calculate_greeks(
+            spot=stock.current_price,
+            strike=stock.current_price,
+            time_to_expiry=30 / 365,
+            volatility=vol,
+            is_call=True,
+        )
 
         strength = self._calculate_strength(conditions_met)
 
@@ -398,6 +466,8 @@ class SignalGenerator:
             risk_reward_ratio=None,
             suggested_expiry_days=30,
             suggested_delta=0.50,  # ATM
+            scoring_breakdown=scoring_breakdown,
+            greeks=greeks,
         )
 
     def _calculate_strength(self, conditions_met: int) -> SignalStrength:

@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""NASDAQ Volatility Scanner - Premium Terminal Dashboard"""
+"""NASDAQ Volatility Scanner - Editorial Dashboard with Educational Insights."""
 
 import sys
-import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
-import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -16,353 +14,96 @@ from nasdaq_scanner.config.settings import Settings, NASDAQ_100
 from nasdaq_scanner.scanner.stock_screener import StockScreener
 from nasdaq_scanner.scanner.signal_generator import SignalGenerator, SignalType, SignalStrength
 from nasdaq_scanner.tracker.prediction_tracker import PredictionTracker, PredictionStatus
+from nasdaq_scanner.explanations import (
+    generate_signal_summary,
+    generate_strike_explanation,
+    format_greeks_educational,
+    generate_strength_breakdown,
+    generate_market_summary,
+    generate_risk_note,
+    generate_iv_explanation,
+)
 
 # Page config
 st.set_page_config(
-    page_title="NASDAQ VOLATILITY TERMINAL",
+    page_title="NASDAQ VOLATILITY SCANNER",
     page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # =============================================================================
-# PREMIUM CSS - High-end 2026 motion graphics
+# EDITORIAL DESIGN SYSTEM CSS
+# Inspired by Succession credits + Faction Collective
+# Reference: docs/DESIGN_SYSTEM.md
 # =============================================================================
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
     /* =========================================================
-       CSS Custom Properties for animatable gradients
-       ========================================================= */
-    @property --glow-opacity {
-        syntax: '<number>';
-        initial-value: 0.4;
-        inherits: false;
-    }
-
-    @property --border-angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-
-    @property --shimmer-x {
-        syntax: '<percentage>';
-        initial-value: -100%;
-        inherits: false;
-    }
-
-    /* =========================================================
-       Root Design Tokens
+       Design Tokens
        ========================================================= */
     :root {
-        --matrix-green: #00ff41;
-        --matrix-green-dim: #00cc33;
-        --matrix-green-dark: #003300;
-        --oled-black: #000000;
-        --surface: rgba(8, 8, 8, 0.85);
-        --surface-solid: #080808;
-        --surface-elevated: rgba(16, 16, 16, 0.9);
-        --accent: #00e5ff;
-        --accent-dim: rgba(0, 229, 255, 0.15);
-        --text-primary: #f0f0f0;
-        --text-secondary: #00ff41;
-        --text-dim: #4a4a4a;
-        --border: rgba(255, 255, 255, 0.06);
-        --border-hover: rgba(255, 255, 255, 0.12);
-        --negative: #ff2d55;
-        --negative-dim: rgba(255, 45, 85, 0.12);
-        --positive: #00ff41;
-        --positive-dim: rgba(0, 255, 65, 0.12);
-        --warning: #ffcc00;
-        --warning-dim: rgba(255, 204, 0, 0.12);
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #F0F0F0;
+        --bg-dark: #1A1A1A;
+        --text-primary: #1A1A1A;
+        --text-secondary: #5A5A5A;
+        --text-tertiary: #8A8A8A;
+        --text-on-dark: #FAFAFA;
+        --border: #E0E0E0;
+        --border-subtle: #EEEEEE;
 
-        /* Premium easing curves */
-        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-        --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-        --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
-        --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        /* Signal colors — subtle, Succession-inspired shifts */
+        --signal-bearish: #8B4513;
+        --signal-bearish-bg: #FAF5F0;
+        --signal-bullish: #2E5A3E;
+        --signal-bullish-bg: #F0F5F2;
+        --signal-hedge: #4A4A6A;
+        --signal-hedge-bg: #F2F2F6;
+        --signal-volatility: #6A4A6A;
+        --signal-volatility-bg: #F5F2F5;
+
+        --positive: #2E5A3E;
+        --negative: #8B3A3A;
+        --neutral: #5A5A5A;
+
+        /* Spacing */
+        --space-xs: 4px;
+        --space-sm: 8px;
+        --space-md: 16px;
+        --space-lg: 24px;
+        --space-xl: 32px;
+        --space-2xl: 48px;
     }
 
     /* =========================================================
-       Global Resets & Base
+       Global
        ========================================================= */
     * {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        text-rendering: optimizeLegibility;
-    }
-
-    html {
-        scroll-behavior: smooth;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-        }
     }
 
     .stApp {
-        background-color: var(--oled-black) !important;
+        background-color: var(--bg-primary) !important;
     }
 
     .main .block-container {
-        background-color: var(--oled-black);
-        padding: 2rem 3rem;
-        max-width: 1400px;
-        position: relative;
-        z-index: 1;
+        background-color: var(--bg-primary);
+        padding: 32px 48px;
+        max-width: 1200px;
     }
 
-    /* =========================================================
-       Scanline Overlay - Ultra subtle CRT effect
-       ========================================================= */
-    .scanline-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 9999;
-        background: repeating-linear-gradient(
-            0deg,
-            transparent 0px,
-            transparent 1px,
-            rgba(0, 0, 0, 0.015) 1px,
-            rgba(0, 0, 0, 0.015) 2px
-        );
-        mix-blend-mode: multiply;
-    }
+    /* Hide Streamlit branding */
+    #MainMenu, footer, header { visibility: hidden; }
 
-    /* =========================================================
-       Matrix Rain - Refined, fewer columns, GPU-accelerated
-       ========================================================= */
-    @keyframes rain-fall {
-        0% {
-            transform: translate3d(0, -100%, 0) scaleY(0.8);
-            opacity: 0;
-        }
-        3% {
-            opacity: 1;
-            transform: translate3d(0, -90%, 0) scaleY(1);
-        }
-        85% {
-            opacity: 0.15;
-        }
-        100% {
-            transform: translate3d(0, 2200px, 0) scaleY(1);
-            opacity: 0;
-        }
-    }
-
-    .matrix-rain-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 0;
-        overflow: hidden;
-        contain: strict;
-        mask-image: linear-gradient(to bottom,
-            rgba(0,0,0,0.25) 0%,
-            rgba(0,0,0,0.08) 30%,
-            rgba(0,0,0,0.02) 60%,
-            rgba(0,0,0,0) 100%);
-        -webkit-mask-image: linear-gradient(to bottom,
-            rgba(0,0,0,0.25) 0%,
-            rgba(0,0,0,0.08) 30%,
-            rgba(0,0,0,0.02) 60%,
-            rgba(0,0,0,0) 100%);
-    }
-
-    .rain-column {
-        position: absolute;
-        top: -200px;
-        color: #00ff41;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 13px;
-        line-height: 1.4;
-        opacity: 0.08;
-        animation: rain-fall linear infinite;
-        white-space: pre;
-        letter-spacing: 3px;
-        text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
-        will-change: transform, opacity;
-        backface-visibility: hidden;
-        filter: blur(0.3px);
-    }
-
-    .rain-column:nth-child(3n) {
-        opacity: 0.12;
-        text-shadow: 0 0 12px rgba(0, 255, 65, 0.4);
-        filter: blur(0px);
-    }
-
-    .rain-column:nth-child(7n) {
-        opacity: 0.06;
-        font-size: 11px;
-        filter: blur(0.5px);
-    }
-
-    /* =========================================================
-       Entrance Animations - Staggered fade-in
-       ========================================================= */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translate3d(0, 12px, 0);
-            filter: blur(4px);
-        }
-        to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-            filter: blur(0px);
-        }
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes slideInLeft {
-        from {
-            opacity: 0;
-            transform: translate3d(-8px, 0, 0);
-        }
-        to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-        }
-    }
-
-    /* =========================================================
-       Glitch Effect - Subtle chromatic aberration
-       ========================================================= */
-    @keyframes glitch-subtle {
-        0%, 92%, 100% {
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
-            transform: translate3d(0, 0, 0);
-        }
-        93% {
-            text-shadow:
-                -1px 0 rgba(255, 45, 85, 0.4),
-                1px 0 rgba(0, 229, 255, 0.4),
-                0 0 10px rgba(0, 255, 65, 0.4);
-            transform: translate3d(0.5px, 0, 0);
-        }
-        94% {
-            text-shadow:
-                1px 0 rgba(255, 45, 85, 0.3),
-                -1px 0 rgba(0, 229, 255, 0.3),
-                0 0 10px rgba(0, 255, 65, 0.4);
-            transform: translate3d(-0.5px, 0, 0);
-        }
-        95% {
-            text-shadow:
-                -0.5px 0.5px rgba(255, 45, 85, 0.2),
-                0.5px -0.5px rgba(0, 229, 255, 0.2),
-                0 0 10px rgba(0, 255, 65, 0.4);
-            transform: translate3d(0, 0.5px, 0);
-        }
-        96% {
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
-            transform: translate3d(0, 0, 0);
-        }
-    }
-
-    /* Second glitch layer using clip-path */
-    @keyframes glitch-clip {
-        0%, 90%, 100% {
-            clip-path: inset(0 0 0 0);
-        }
-        91% {
-            clip-path: inset(20% 0 60% 0);
-        }
-        92% {
-            clip-path: inset(60% 0 10% 0);
-        }
-        93% {
-            clip-path: inset(40% 0 30% 0);
-        }
-        94% {
-            clip-path: inset(0 0 0 0);
-        }
-    }
-
-    /* =========================================================
-       Ambient Glow / Breathing
-       ========================================================= */
-    @keyframes breathe {
-        0%, 100% {
-            box-shadow: 0 0 0 rgba(0, 255, 65, 0);
-            border-color: rgba(0, 255, 65, 0.3);
-        }
-        50% {
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.06), 0 0 40px rgba(0, 255, 65, 0.03);
-            border-color: rgba(0, 255, 65, 0.5);
-        }
-    }
-
-    @keyframes shimmer {
-        0% { --shimmer-x: -100%; }
-        100% { --shimmer-x: 200%; }
-    }
-
-    @keyframes borderGlow {
-        0%, 100% { --border-angle: 0deg; }
-        100% { --border-angle: 360deg; }
-    }
-
-    @keyframes pulse-dot {
-        0%, 100% {
-            box-shadow: 0 0 4px var(--positive), 0 0 8px var(--positive);
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 0 8px var(--positive), 0 0 16px var(--positive), 0 0 24px rgba(0, 255, 65, 0.2);
-            transform: scale(1.15);
-        }
-    }
-
-    @keyframes blink-smooth {
-        0%, 45% { opacity: 1; }
-        50%, 95% { opacity: 0; }
-        100% { opacity: 1; }
-    }
-
-    /* =========================================================
-       Number Shimmer Effect
-       ========================================================= */
-    .num-shimmer {
-        position: relative;
-        display: inline-block;
-    }
-
-    .num-shimmer::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: var(--shimmer-x, -100%);
-        width: 60%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255, 255, 255, 0.04) 40%,
-            rgba(255, 255, 255, 0.08) 50%,
-            rgba(255, 255, 255, 0.04) 60%,
-            transparent 100%
-        );
-        animation: shimmer 6s ease-in-out infinite;
-        pointer-events: none;
+    /* Hide anchor links */
+    .stMarkdown a[href^="#"],
+    h1 a, h2 a, h3 a,
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
     }
 
     /* =========================================================
@@ -373,503 +114,465 @@ st.markdown("""
         color: var(--text-primary) !important;
     }
 
+    .headline {
+        font-family: 'Bebas Neue', 'Arial Narrow', sans-serif !important;
+        font-weight: 400;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-primary) !important;
+    }
+
+    .headline-lg { font-size: 72px; line-height: 1; }
+    .headline-md { font-size: 36px; line-height: 1.1; }
+    .headline-sm { font-size: 20px; line-height: 1.2; letter-spacing: 0.06em; }
+
     .mono {
-        font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
+        font-family: 'JetBrains Mono', 'Consolas', monospace !important;
+    }
+
+    .label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+    }
+
+    .body-light {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px;
+        font-weight: 300;
+        line-height: 1.7;
+        color: var(--text-secondary) !important;
     }
 
     /* =========================================================
-       Terminal Header
+       Page Header
        ========================================================= */
-    .terminal-header {
-        border-bottom: 1px solid rgba(0, 255, 65, 0.2);
-        padding-bottom: 24px;
-        margin-bottom: 32px;
-        animation: fadeIn 0.8s var(--ease-out-expo) both;
-        position: relative;
+    .page-header {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: var(--space-lg);
+        margin-bottom: var(--space-xl);
     }
 
-    .terminal-header::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg,
-            transparent 0%,
-            rgba(0, 255, 65, 0.6) 20%,
-            rgba(0, 255, 65, 0.6) 80%,
-            transparent 100%);
+    .page-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
     }
 
-    .terminal-title {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: 6px;
-        color: var(--matrix-green) !important;
-        text-transform: uppercase;
-        margin: 0;
-        position: relative;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
-        animation: glitch-subtle 8s var(--ease-in-out-quint) infinite;
-        will-change: transform, text-shadow;
-        backface-visibility: hidden;
-    }
-
-    /* Chromatic aberration pseudo-layers */
-    .terminal-title::before,
-    .terminal-title::after {
-        content: attr(data-text);
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-    }
-
-    .terminal-title::before {
-        color: var(--negative);
-        opacity: 0;
-        animation: glitch-clip 8s linear infinite;
-        animation-delay: -0.1s;
-        transform: translate3d(-1px, 0, 0);
-    }
-
-    .terminal-title::after {
-        color: var(--accent);
-        opacity: 0;
-        animation: glitch-clip 8s linear infinite;
-        animation-delay: -0.15s;
-        transform: translate3d(1px, 0, 0);
-    }
-
-    /* Hide Streamlit anchor links */
-    .stMarkdown a[href^="#"],
-    h1 a, h2 a, h3 a, h4 a, h5 a, h6 a,
-    [data-testid="stHeaderActionElements"] {
-        display: none !important;
-    }
-
-    .terminal-subtitle {
-        font-family: 'JetBrains Mono', monospace !important;
+    .market-status {
+        font-family: 'Inter', sans-serif !important;
         font-size: 11px;
-        color: var(--text-dim) !important;
-        letter-spacing: 3px;
-        margin-top: 8px;
-        animation: fadeIn 1s var(--ease-out-expo) 0.2s both;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
     }
 
-    .terminal-time {
+    .status-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background: var(--text-tertiary);
+    }
+
+    .status-dot.active {
+        background: var(--positive);
+    }
+
+    .time-display {
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 13px;
-        color: var(--matrix-green) !important;
-        opacity: 0.8;
-        transition: opacity 0.3s ease;
-    }
-
-    .cursor-blink::after {
-        content: '_';
-        animation: blink-smooth 1.2s ease-in-out infinite;
-        color: var(--matrix-green);
+        color: var(--text-tertiary) !important;
     }
 
     /* =========================================================
-       Metric Cards - Frosted glass with stagger
+       Metric Cards
        ========================================================= */
     .metric-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 32px;
+        gap: var(--space-lg);
+        margin-bottom: var(--space-xl);
     }
 
     .metric-card {
-        background: var(--surface);
-        backdrop-filter: blur(12px) saturate(120%);
-        -webkit-backdrop-filter: blur(12px) saturate(120%);
-        border: 1px solid var(--border);
-        border-left: 3px solid rgba(0, 255, 65, 0.4);
+        background: white;
+        border: 1px solid var(--border-subtle);
         padding: 20px 24px;
-        transition: all 0.4s var(--ease-out-expo);
-        animation: fadeInUp 0.6s var(--ease-out-expo) both;
-        position: relative;
-        overflow: hidden;
     }
 
-    .metric-card:nth-child(1) { animation-delay: 0.1s; }
-    .metric-card:nth-child(2) { animation-delay: 0.15s; }
-    .metric-card:nth-child(3) { animation-delay: 0.2s; }
-    .metric-card:nth-child(4) { animation-delay: 0.25s; }
-
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 60%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.02),
-            transparent
-        );
-        transition: left 0.8s var(--ease-out-expo);
-        pointer-events: none;
-    }
-
-    .metric-card:hover {
-        border-color: var(--border-hover);
-        border-left-color: rgba(0, 255, 65, 0.7);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .metric-card:hover::before {
-        left: 120%;
-    }
-
-    .metric-label {
+    .metric-card-label {
         font-family: 'Inter', sans-serif !important;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 500;
-        letter-spacing: 1.5px;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--text-dim) !important;
-        margin-bottom: 8px;
+        color: var(--text-tertiary) !important;
+        margin-bottom: var(--space-sm);
     }
 
-    .metric-value {
+    .metric-card-value {
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 32px;
-        font-weight: 600;
-        color: var(--matrix-green) !important;
-        transition: color 0.3s ease;
+        font-weight: 500;
+        color: var(--text-primary) !important;
     }
 
     /* =========================================================
-       Signal Cards - Premium glass with animated borders
+       Hero Signal Panel
+       ========================================================= */
+    .hero-panel {
+        background: white;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--text-primary);
+        margin-bottom: var(--space-xl);
+    }
+
+    .hero-panel.put { border-left-color: var(--signal-bearish); }
+    .hero-panel.call { border-left-color: var(--signal-bullish); }
+    .hero-panel.hedge { border-left-color: var(--signal-hedge); }
+    .hero-panel.volatility { border-left-color: var(--signal-volatility); }
+
+    .hero-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        padding: 16px 24px 8px 24px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .hero-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0;
+    }
+
+    .hero-section {
+        padding: 24px 32px;
+    }
+
+    .hero-section + .hero-section {
+        border-left: 1px solid var(--border-subtle);
+    }
+
+    .hero-symbol {
+        font-family: 'Bebas Neue', sans-serif !important;
+        font-size: 48px;
+        letter-spacing: 0.04em;
+        color: var(--text-primary) !important;
+        line-height: 1;
+    }
+
+    .hero-price {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 18px;
+        color: var(--text-secondary) !important;
+        margin-top: 4px;
+    }
+
+    /* =========================================================
+       Signal Cards
        ========================================================= */
     .signal-card {
-        background: var(--surface);
-        backdrop-filter: blur(16px) saturate(130%);
-        -webkit-backdrop-filter: blur(16px) saturate(130%);
+        background: white;
         border: 1px solid var(--border);
-        margin-bottom: 24px;
-        position: relative;
-        overflow: hidden;
-        animation: fadeInUp 0.5s var(--ease-out-expo) both;
-        transition: all 0.4s var(--ease-out-expo);
+        border-left: 3px solid var(--text-primary);
+        margin-bottom: var(--space-lg);
     }
 
-    .signal-card:hover {
-        border-color: var(--border-hover);
-        transform: translateY(-1px);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    .signal-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 3px;
-        height: 100%;
-        transition: width 0.4s var(--ease-out-expo), box-shadow 0.4s var(--ease-out-expo);
-    }
-
-    .signal-card:hover::before {
-        width: 4px;
-    }
-
-    .signal-card.put::before {
-        background: var(--negative);
-        box-shadow: 0 0 12px rgba(255, 45, 85, 0.3);
-    }
-    .signal-card.call::before {
-        background: var(--positive);
-        box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
-    }
-    .signal-card.hedge::before {
-        background: var(--warning);
-        box-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
-    }
-
-    .signal-card:hover.put::before { box-shadow: 0 0 20px rgba(255, 45, 85, 0.5); }
-    .signal-card:hover.call::before { box-shadow: 0 0 20px rgba(0, 255, 65, 0.5); }
-    .signal-card:hover.hedge::before { box-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
+    .signal-card.put { border-left-color: var(--signal-bearish); background: var(--signal-bearish-bg); }
+    .signal-card.call { border-left-color: var(--signal-bullish); background: var(--signal-bullish-bg); }
+    .signal-card.hedge { border-left-color: var(--signal-hedge); background: var(--signal-hedge-bg); }
+    .signal-card.volatility { border-left-color: var(--signal-volatility); background: var(--signal-volatility-bg); }
 
     .signal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 20px 24px;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid var(--border-subtle);
     }
 
-    .signal-type {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        padding: 6px 14px;
+    .signal-type-badge {
+        font-family: 'Bebas Neue', sans-serif !important;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        padding: 4px 14px;
         text-transform: uppercase;
-        transition: box-shadow 0.3s var(--ease-out-expo);
     }
 
-    .signal-type.put {
-        background: var(--negative);
-        color: var(--oled-black);
-        box-shadow: 0 0 8px rgba(255, 45, 85, 0.3);
-    }
-    .signal-type.call {
-        background: var(--positive);
-        color: var(--oled-black);
-        box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
-    }
-    .signal-type.hedge {
-        background: var(--warning);
-        color: var(--oled-black);
-        box-shadow: 0 0 8px rgba(255, 204, 0, 0.3);
-    }
+    .signal-type-badge.put { background: var(--signal-bearish); color: white; }
+    .signal-type-badge.call { background: var(--signal-bullish); color: white; }
+    .signal-type-badge.hedge { background: var(--signal-hedge); color: white; }
+    .signal-type-badge.volatility { background: var(--signal-volatility); color: white; }
 
     .signal-symbol {
-        font-family: 'JetBrains Mono', monospace !important;
+        font-family: 'Bebas Neue', sans-serif !important;
         font-size: 28px;
-        font-weight: 700;
+        letter-spacing: 0.04em;
         color: var(--text-primary) !important;
-        letter-spacing: 3px;
     }
 
-    .signal-strength {
-        font-family: 'JetBrains Mono', monospace !important;
+    .signal-strength-text {
+        font-family: 'Inter', sans-serif !important;
         font-size: 11px;
-        color: var(--matrix-green) !important;
-        letter-spacing: 1px;
-        opacity: 0.8;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--text-tertiary) !important;
+        text-transform: uppercase;
     }
 
     .signal-body {
         padding: 24px;
     }
 
-    .signal-grid {
+    .signal-summary {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px;
+        font-weight: 300;
+        line-height: 1.7;
+        color: var(--text-secondary) !important;
+        margin-bottom: 20px;
+    }
+
+    .signal-data-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 24px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: var(--space-md);
+        margin-bottom: 20px;
     }
 
-    .signal-metric { text-align: left; }
+    .signal-data-item {}
 
-    .signal-metric-label {
-        font-size: 9px;
-        font-weight: 600;
-        letter-spacing: 1.5px;
+    .signal-data-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--text-dim) !important;
-        margin-bottom: 6px;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 4px;
     }
 
-    .signal-metric-value {
+    .signal-data-value {
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 20px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 500;
         color: var(--text-primary) !important;
-        transition: color 0.3s ease;
     }
 
-    .signal-metric-value.positive { color: var(--positive) !important; }
-    .signal-metric-value.negative { color: var(--negative) !important; }
-    .signal-metric-value.accent { color: var(--accent) !important; }
+    .signal-data-value.positive { color: var(--positive) !important; }
+    .signal-data-value.negative { color: var(--negative) !important; }
+    .signal-data-value.accent { color: var(--signal-hedge) !important; }
 
-    /* =========================================================
-       Timing Box - Breathing border glow
-       ========================================================= */
-    .timing-box {
-        background: linear-gradient(135deg, rgba(16, 16, 16, 0.9) 0%, rgba(0, 20, 0, 0.6) 100%);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(0, 255, 65, 0.25);
-        padding: 20px 24px;
-        margin-top: 20px;
-        position: relative;
-        overflow: hidden;
-        animation: breathe 6s ease-in-out infinite;
-        transition: all 0.4s var(--ease-out-expo);
+    /* IV inline explanation */
+    .iv-inline {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        font-weight: 300;
+        color: var(--text-secondary) !important;
+        padding: 12px 16px;
+        border-left: 2px solid var(--border);
+        margin-bottom: 16px;
+        line-height: 1.6;
     }
 
-    .timing-box:hover {
-        border-color: rgba(0, 255, 65, 0.5);
+    /* Risk note */
+    .risk-note {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        font-weight: 300;
+        font-style: italic;
+        color: var(--text-tertiary) !important;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-subtle);
+        line-height: 1.6;
     }
 
-    .timing-box::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.6), transparent);
+    .risk-note strong {
+        font-weight: 500;
+        font-style: normal;
+        color: var(--negative) !important;
+    }
+
+    /* Timing section */
+    .timing-section {
+        background: white;
+        border: 1px solid var(--border-subtle);
+        padding: 16px 20px;
+        margin-bottom: 16px;
     }
 
     .timing-label {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 3px;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--matrix-green) !important;
-        margin-bottom: 12px;
-        opacity: 0.8;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 8px;
     }
 
     .timing-value {
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 22px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 500;
         color: var(--text-primary) !important;
-        letter-spacing: 1px;
     }
 
-    .timing-countdown {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 13px;
-        color: var(--accent) !important;
-        margin-top: 8px;
-        opacity: 0.9;
+    .timing-next {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        color: var(--text-tertiary) !important;
+        margin-top: 4px;
     }
 
     .timing-note {
-        font-size: 11px;
-        color: var(--text-dim) !important;
-        margin-top: 12px;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        font-weight: 300;
+        color: var(--text-secondary) !important;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
+    /* Action section */
+    .action-section {
+        background: white;
+        border: 1px solid var(--border-subtle);
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
+
+    .action-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 8px;
+    }
+
+    .action-text {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px;
+        color: var(--text-primary) !important;
         line-height: 1.5;
     }
 
     /* =========================================================
-       Rationale
+       Market Overview Strip
        ========================================================= */
-    .signal-rationale {
+    .market-strip {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0;
+        background: white;
+        border: 1px solid var(--border);
+        margin-bottom: var(--space-lg);
+    }
+
+    .market-strip-item {
+        padding: 16px 20px;
+        border-right: 1px solid var(--border-subtle);
+        text-align: center;
+    }
+
+    .market-strip-item:last-child {
+        border-right: none;
+    }
+
+    .market-strip-label {
+        font-family: 'Inter', sans-serif !important;
         font-size: 12px;
-        color: var(--text-dim) !important;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 4px;
+    }
+
+    .market-strip-value {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--text-primary) !important;
+    }
+
+    .market-strip-value.positive { color: var(--positive) !important; }
+    .market-strip-value.negative { color: var(--negative) !important; }
+    .market-strip-value.warning { color: var(--signal-hedge) !important; }
+
+    .market-summary {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px;
+        font-weight: 300;
         line-height: 1.7;
-        padding-top: 20px;
-        border-top: 1px solid var(--border);
-        letter-spacing: 0.3px;
+        color: var(--text-secondary) !important;
+        margin-bottom: var(--space-xl);
+        padding: 16px 0;
     }
 
     /* =========================================================
-       Data Table - Clean with smooth hover
+       Data Table
        ========================================================= */
     .data-table {
         width: 100%;
         border-collapse: collapse;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
     }
 
     .data-table th {
         text-align: left;
         padding: 14px 16px;
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 1.5px;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--text-dim) !important;
-        border-bottom: 1px solid rgba(0, 255, 65, 0.2);
-        background: var(--surface-solid);
+        color: var(--text-tertiary) !important;
+        border-bottom: 2px solid var(--text-primary);
     }
 
     .data-table td {
-        padding: 14px 16px;
-        border-bottom: 1px solid var(--border);
+        padding: 12px 16px;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 13px;
+        border-bottom: 1px solid var(--border-subtle);
         color: var(--text-primary) !important;
-        transition: all 0.2s ease;
-    }
-
-    .data-table tr {
-        transition: all 0.25s var(--ease-out-expo);
     }
 
     .data-table tr:hover td {
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--bg-secondary);
     }
 
     .data-table td.positive { color: var(--positive) !important; }
     .data-table td.negative { color: var(--negative) !important; }
 
-    /* =========================================================
-       Status Indicators
-       ========================================================= */
-    .status-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 8px;
-        transition: all 0.3s ease;
+    /* Screener color legend */
+    .screener-legend {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border-left: 2px solid var(--border);
     }
 
-    .status-dot.active {
-        background: var(--positive);
-        animation: pulse-dot 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        will-change: box-shadow, transform;
-    }
+    .screener-legend .neg { color: var(--negative); font-weight: 500; }
+    .screener-legend .pos { color: var(--positive); font-weight: 500; }
 
     /* =========================================================
-       Buttons - Smooth glass transitions
-       ========================================================= */
-    .stButton > button {
-        background: transparent !important;
-        border: 1px solid rgba(0, 255, 65, 0.3) !important;
-        color: var(--matrix-green) !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 11px !important;
-        font-weight: 600 !important;
-        letter-spacing: 2px !important;
-        text-transform: uppercase !important;
-        padding: 12px 32px !important;
-        transition: all 0.35s var(--ease-out-expo) !important;
-        will-change: background, color, box-shadow, border-color;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stButton > button:hover {
-        background: rgba(0, 255, 65, 0.08) !important;
-        border-color: rgba(0, 255, 65, 0.6) !important;
-        color: var(--matrix-green) !important;
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), 0 0 40px rgba(0, 255, 65, 0.05) !important;
-    }
-
-    .stButton > button:active {
-        transform: scale(0.98) !important;
-        transition: transform 0.1s ease !important;
-    }
-
-    /* =========================================================
-       Select Box
-       ========================================================= */
-    .stSelectbox > div > div {
-        background: var(--surface-solid) !important;
-        border: 1px solid var(--border) !important;
-        color: var(--text-primary) !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        transition: border-color 0.3s ease !important;
-    }
-
-    .stSelectbox > div > div:hover {
-        border-color: var(--border-hover) !important;
-    }
-
-    /* Hide streamlit branding */
-    #MainMenu, footer, header { visibility: hidden; }
-
-    /* =========================================================
-       Tabs - Clean with smooth indicator
+       Tabs
        ========================================================= */
     .stTabs [data-baseweb="tab-list"] {
         background: transparent;
@@ -880,523 +583,143 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         background: transparent !important;
         border: none !important;
-        color: var(--text-dim) !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 11px !important;
-        font-weight: 600 !important;
-        letter-spacing: 2px !important;
+        color: var(--text-tertiary) !important;
+        font-family: 'Bebas Neue', sans-serif !important;
+        font-size: 18px !important;
+        letter-spacing: 0.06em !important;
         text-transform: uppercase !important;
         padding: 16px 32px !important;
-        transition: color 0.3s var(--ease-out-expo) !important;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
-        color: rgba(0, 255, 65, 0.6) !important;
+        color: var(--text-secondary) !important;
     }
 
     .stTabs [aria-selected="true"] {
-        color: var(--matrix-green) !important;
-        border-bottom: 2px solid var(--matrix-green) !important;
-        text-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+        color: var(--text-primary) !important;
+        border-bottom: 2px solid var(--text-primary) !important;
     }
 
     /* =========================================================
-       Section Dividers
+       Buttons & Inputs
        ========================================================= */
-    .section-divider {
+    .stButton > button {
+        background: var(--text-primary) !important;
+        border: 1px solid var(--text-primary) !important;
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        padding: 14px 40px !important;
+        transition: opacity 0.2s ease !important;
+    }
+
+    .stButton > button:hover {
+        opacity: 0.85 !important;
+    }
+
+    .stSelectbox > div > div {
+        background: white !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+
+    /* =========================================================
+       Expanders (Learn More sections)
+       ========================================================= */
+    .stExpander {
+        border: 1px solid var(--border-subtle) !important;
+        border-left: 2px solid var(--border) !important;
+        background: white !important;
+        margin-bottom: 8px;
+    }
+
+    .stExpander summary {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        color: var(--text-secondary) !important;
+    }
+
+    /* =========================================================
+       Section Divider
+       ========================================================= */
+    .divider {
         height: 1px;
-        background: linear-gradient(90deg,
-            transparent,
-            rgba(0, 255, 65, 0.15),
-            transparent);
-        margin: 40px 0;
+        background: var(--border);
+        margin: 32px 0;
     }
 
     /* =========================================================
-       Action Box
+       Footer
        ========================================================= */
-    .action-box {
-        background: rgba(0, 229, 255, 0.03);
-        border: 1px solid rgba(0, 229, 255, 0.15);
-        padding: 16px 20px;
-        margin-top: 16px;
-        transition: all 0.3s var(--ease-out-expo);
-    }
-
-    .action-box:hover {
-        border-color: rgba(0, 229, 255, 0.3);
-        background: rgba(0, 229, 255, 0.05);
-    }
-
-    .action-label {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--accent) !important;
-        margin-bottom: 8px;
-        opacity: 0.8;
-    }
-
-    .action-text {
-        font-size: 13px;
-        color: var(--text-primary) !important;
-        line-height: 1.5;
-    }
-
-    /* =========================================================
-       Hero Panel - Premium with animated top glow
-       ========================================================= */
-    @keyframes hero-glow {
-        0%, 100% {
-            box-shadow: 0 -2px 20px rgba(0, 255, 65, 0.1);
-        }
-        50% {
-            box-shadow: 0 -2px 30px rgba(0, 255, 65, 0.2), 0 -2px 60px rgba(0, 255, 65, 0.05);
-        }
-    }
-
-    .hero-panel {
-        background: linear-gradient(180deg, rgba(0, 20, 0, 0.6) 0%, var(--oled-black) 100%);
-        border: 1px solid rgba(0, 255, 65, 0.2);
-        padding: 0;
-        margin-bottom: 32px;
-        position: relative;
-        overflow: hidden;
-        animation: fadeInUp 0.7s var(--ease-out-expo) 0.1s both,
-                   hero-glow 6s ease-in-out infinite;
-        transition: all 0.4s var(--ease-out-expo);
-    }
-
-    .hero-panel:hover {
-        border-color: rgba(0, 255, 65, 0.4);
-    }
-
-    .hero-panel::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg,
-            transparent 0%,
-            rgba(0, 255, 65, 0.4) 20%,
-            var(--matrix-green) 50%,
-            rgba(0, 255, 65, 0.4) 80%,
-            transparent 100%);
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
-    }
-
-    /* Ambient light sweep on hero */
-    .hero-panel::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 50%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(0, 255, 65, 0.015),
-            transparent
-        );
-        animation: shimmer 8s ease-in-out infinite;
-        pointer-events: none;
-    }
-
-    .hero-label {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 4px;
-        color: var(--matrix-green) !important;
-        padding: 16px 24px 8px 24px;
-        border-bottom: 1px solid var(--border);
-        background: rgba(0, 255, 65, 0.02);
-        opacity: 0.7;
-    }
-
-    .hero-content {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 0;
-        position: relative;
-        z-index: 1;
-    }
-
-    .hero-main {
-        padding: 24px 32px;
-        border-right: 1px solid var(--border);
-        animation: slideInLeft 0.6s var(--ease-out-expo) 0.3s both;
-    }
-
-    .hero-signal-type {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        padding: 4px 12px;
-        display: inline-block;
-        margin-bottom: 12px;
-    }
-
-    .hero-signal-type.put {
-        background: var(--negative);
-        color: var(--oled-black);
-        box-shadow: 0 0 12px rgba(255, 45, 85, 0.3);
-    }
-    .hero-signal-type.call {
-        background: var(--positive);
-        color: var(--oled-black);
-        box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
-    }
-    .hero-signal-type.hedge {
-        background: var(--warning);
-        color: var(--oled-black);
-        box-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
-    }
-
-    .hero-symbol {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 48px;
-        font-weight: 700;
-        color: var(--text-primary) !important;
-        letter-spacing: 4px;
-        line-height: 1;
-    }
-
-    .hero-price {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 20px;
-        color: var(--text-dim) !important;
-        margin-top: 8px;
-    }
-
-    .hero-center {
-        padding: 24px 32px;
-        border-right: 1px solid var(--border);
+    .footer {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        animation: fadeInUp 0.6s var(--ease-out-expo) 0.4s both;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px 0;
+        border-top: 1px solid var(--border);
+        margin-top: 48px;
     }
 
-    .hero-timing-label {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        color: var(--matrix-green) !important;
-        margin-bottom: 8px;
-        opacity: 0.7;
+    .footer-text {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
     }
 
-    .hero-timing-value {
-        font-family: 'JetBrains Mono', monospace !important;
+    /* No signal state */
+    .empty-state {
+        text-align: center;
+        padding: 80px 0;
+    }
+
+    .empty-state-text {
+        font-family: 'Bebas Neue', sans-serif !important;
         font-size: 24px;
-        font-weight: 600;
-        color: var(--text-primary) !important;
+        letter-spacing: 0.08em;
+        color: var(--text-tertiary) !important;
     }
 
-    .hero-timing-next {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 12px;
-        color: var(--accent) !important;
-        margin-top: 8px;
-        opacity: 0.8;
-    }
-
-    .hero-right {
-        padding: 24px 32px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        animation: fadeInUp 0.6s var(--ease-out-expo) 0.5s both;
-    }
-
-    .hero-action-label {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        color: var(--accent) !important;
-        margin-bottom: 8px;
-        opacity: 0.7;
-    }
-
-    .hero-action-text {
+    .empty-state-sub {
+        font-family: 'Inter', sans-serif !important;
         font-size: 13px;
-        color: var(--text-primary) !important;
-        line-height: 1.6;
+        color: var(--text-tertiary) !important;
+        margin-top: 8px;
     }
 
-    .hero-strike {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--accent) !important;
-        margin-top: 12px;
-        text-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
-    }
-
-    /* =========================================================
-       Market Overview Strip
-       ========================================================= */
-    .market-strip {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 0;
-        background: var(--surface);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid var(--border);
-        margin-bottom: 24px;
-        animation: fadeInUp 0.6s var(--ease-out-expo) 0.2s both;
-    }
-
-    .market-strip-item {
-        padding: 16px 20px;
-        border-right: 1px solid var(--border);
-        text-align: center;
-        transition: background 0.3s var(--ease-out-expo);
-    }
-
-    .market-strip-item:last-child {
-        border-right: none;
-    }
-
-    .market-strip-item:hover {
-        background: rgba(255, 255, 255, 0.015);
-    }
-
-    .market-strip-label {
-        font-size: 8px;
-        font-weight: 600;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: var(--text-dim) !important;
-        margin-bottom: 4px;
-    }
-
-    .market-strip-value {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary) !important;
-        transition: color 0.3s ease;
-    }
-
-    .market-strip-value.positive { color: var(--positive) !important; }
-    .market-strip-value.negative { color: var(--negative) !important; }
-    .market-strip-value.warning { color: var(--warning) !important; }
-    .market-strip-value.accent { color: var(--accent) !important; }
-
-    /* =========================================================
-       No Signal State
-       ========================================================= */
-    .no-signal-hero {
-        padding: 40px;
-        text-align: center;
-    }
-
-    @keyframes scan-line {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(300%); }
-    }
-
-    .no-signal-text {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 14px;
-        color: var(--text-dim) !important;
-        letter-spacing: 2px;
-        position: relative;
-    }
-
-    .no-signal-text::after {
-        content: '';
-        position: absolute;
-        bottom: -4px;
-        left: 0;
-        width: 30%;
-        height: 1px;
-        background: var(--matrix-green);
-        animation: scan-line 3s var(--ease-in-out-quint) infinite;
-    }
-
-    /* =========================================================
-       Live Number Jitter Containers
-       ========================================================= */
-    .jitter-value {
-        display: inline-block;
-        font-variant-numeric: tabular-nums;
-        transition: transform 0.1s ease;
-    }
-
-    /* =========================================================
-       Noise texture overlay (ultra-subtle)
-       ========================================================= */
-    .noise-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 9998;
-        opacity: 0.015;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        background-repeat: repeat;
-        background-size: 256px 256px;
-    }
-
-    /* =========================================================
-       Streamlit Cloud Overrides - Force colors with max specificity
-       ========================================================= */
-    .stApp .main .block-container .stMarkdown .terminal-title,
-    .stApp .terminal-title,
-    [data-testid="stMarkdownContainer"] .terminal-title {
-        color: #00ff41 !important;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.4) !important;
-    }
-
-    .stApp .metric-value,
-    [data-testid="stMarkdownContainer"] .metric-value {
-        color: #00ff41 !important;
-    }
-
-    .stApp .terminal-time,
-    [data-testid="stMarkdownContainer"] .terminal-time {
-        color: #00ff41 !important;
-    }
-
-    .stApp .hero-label,
-    .stApp .timing-label,
-    .stApp .signal-strength,
-    .stApp .hero-timing-label {
-        color: #00ff41 !important;
-    }
-
-    .stApp .hero-timing-next,
-    .stApp .timing-countdown,
-    .stApp .action-label,
-    .stApp .hero-action-label,
-    .stApp .hero-strike {
-        color: #00e5ff !important;
-    }
-
-    .stApp .signal-metric-value.positive,
-    .stApp .market-strip-value.positive,
-    .stApp .data-table td.positive {
-        color: #00ff41 !important;
-    }
-
-    .stApp .signal-metric-value.negative,
-    .stApp .market-strip-value.negative,
-    .stApp .data-table td.negative {
-        color: #ff2d55 !important;
-    }
-
-    .stApp .signal-metric-value.accent {
-        color: #00e5ff !important;
-    }
-
-    .stApp .market-strip-value.warning {
-        color: #ffcc00 !important;
-    }
-
-    .stApp .metric-label,
-    .stApp .signal-metric-label,
-    .stApp .market-strip-label,
-    .stApp .terminal-subtitle,
-    .stApp .timing-note,
-    .stApp .signal-rationale {
-        color: #4a4a4a !important;
-    }
-
-    .stApp .hero-symbol,
-    .stApp .signal-symbol,
-    .stApp .timing-value,
-    .stApp .hero-timing-value,
-    .stApp .action-text,
-    .stApp .hero-action-text,
-    .stApp .signal-metric-value,
-    .stApp .market-strip-value {
-        color: #f0f0f0 !important;
+    /* Data freshness */
+    .freshness {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 16px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-# Subtle overlays (no script tags in st.markdown — Streamlit strips them)
-st.markdown("""
-<div class="scanline-overlay"></div>
-<div class="noise-overlay"></div>
-""", unsafe_allow_html=True)
-
-# JavaScript via components.html — this is the only way to run JS in Streamlit
+# Live clock JS
 components.html("""
 <script>
 (function() {
     'use strict';
     var parent = window.parent.document;
-
-    // ---- Live Clock ----
     function updateClock() {
         var el = parent.getElementById('live-clock');
         if (!el) return;
         var now = new Date();
-        var h = String(now.getHours()).padStart(2, '0');
-        var m = String(now.getMinutes()).padStart(2, '0');
-        var s = String(now.getSeconds()).padStart(2, '0');
-        el.textContent = h + ':' + m + ':' + s;
+        el.textContent = String(now.getHours()).padStart(2,'0') + ':' +
+                         String(now.getMinutes()).padStart(2,'0') + ':' +
+                         String(now.getSeconds()).padStart(2,'0');
     }
-
-    // ---- Subtle Number Jitter ----
-    function jitterNumbers() {
-        var els = parent.querySelectorAll('.jitter-value');
-        els.forEach(function(el) {
-            var base = parseFloat(el.getAttribute('data-base'));
-            if (isNaN(base)) return;
-            var jitter = (Math.random() - 0.5) * 0.04;
-            var val = base + jitter;
-            el.textContent = '$' + val.toFixed(2);
-        });
-    }
-
-    // ---- Smooth Counter Animation ----
-    function animateCounters() {
-        var counters = parent.querySelectorAll('.animate-count');
-        counters.forEach(function(el) {
-            if (el.getAttribute('data-animated') === 'true') return;
-            el.setAttribute('data-animated', 'true');
-            var target = parseInt(el.getAttribute('data-target'), 10);
-            if (isNaN(target) || target === 0) return;
-            var duration = 1200;
-            var startTime = performance.now();
-
-            function step(currentTime) {
-                var elapsed = currentTime - startTime;
-                var progress = Math.min(elapsed / duration, 1);
-                var eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-                var current = Math.round(target * eased);
-                el.textContent = current;
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                }
-            }
-            requestAnimationFrame(step);
-        });
-    }
-
-    // ---- Init ----
-    function init() {
-        setInterval(updateClock, 1000);
-        updateClock();
-        setInterval(jitterNumbers, 2500);
-        setTimeout(animateCounters, 300);
-    }
-
-    setTimeout(init, 500);
+    setInterval(updateClock, 1000);
+    setTimeout(updateClock, 300);
 })();
 </script>
 """, height=0)
@@ -1408,33 +731,31 @@ components.html("""
 
 def get_optimal_entry_time(signal):
     """Calculate optimal entry time based on signal type and market conditions."""
+    from datetime import timedelta
     now = datetime.now()
 
     if signal.signal_type == SignalType.PUT_OPPORTUNITY:
         if signal.strength.value >= 4:
             window = "10:00 - 10:30 AM ET"
-            rationale = "Enter on morning rally exhaustion. Overbought conditions typically reverse after initial buying pressure fades."
+            rationale = "Enter on morning rally exhaustion. Overbought conditions tend to reverse after initial buying pressure fades."
             action = f"Place limit order for {signal.symbol} puts at strike ${signal.suggested_strike:.2f} when underlying reaches ${signal.current_price * 1.005:.2f} or higher."
         else:
             window = "2:30 - 3:00 PM ET"
-            rationale = "Enter during afternoon distribution. Institutional profit-taking creates optimal put entry."
+            rationale = "Enter during afternoon distribution. Institutional profit-taking often creates optimal put entry."
             action = f"Place limit order for {signal.symbol} puts at strike ${signal.suggested_strike:.2f}. Target 30-45 DTE expiration."
-
     elif signal.signal_type == SignalType.CALL_OPPORTUNITY:
         if signal.strength.value >= 4:
             window = "9:45 - 10:15 AM ET"
-            rationale = "Enter after opening panic subsides. Oversold bounces typically begin within first 30 minutes."
+            rationale = "Enter after opening panic subsides. Oversold bounces tend to begin within first 30 minutes."
             action = f"Place limit order for {signal.symbol} calls at strike ${signal.suggested_strike:.2f} when underlying tests ${signal.current_price * 0.995:.2f}."
         else:
             window = "3:00 - 3:30 PM ET"
-            rationale = "Enter before power hour. Short covering and momentum buying accelerate into close."
+            rationale = "Enter before power hour. Short covering and momentum buying often accelerate into close."
             action = f"Place limit order for {signal.symbol} calls at strike ${signal.suggested_strike:.2f}. Target 30-45 DTE expiration."
-
     elif signal.signal_type == SignalType.HEDGE_SIGNAL:
         window = "11:30 AM - 1:00 PM ET"
-        rationale = "Midday lull provides tightest spreads. Lower volume means better fill prices for protective positions."
+        rationale = "Midday lull provides tighter spreads. Lower volume tends to mean better fill prices for protective positions."
         action = f"Buy {signal.symbol} puts at strike ${signal.suggested_strike:.2f} for portfolio protection. Consider 60-90 DTE for time decay buffer."
-
     else:
         window = "9:35 - 9:45 AM ET"
         rationale = "Capture initial directional momentum before market digests overnight news."
@@ -1452,6 +773,7 @@ def get_optimal_entry_time(signal):
 
 def get_next_window_time(now, window):
     """Determine when the next entry window occurs."""
+    from datetime import timedelta
     start_str = window.split(" - ")[0]
     is_pm = "PM" in window
     hour = int(start_str.split(":")[0])
@@ -1479,10 +801,9 @@ def get_next_window_time(now, window):
 
 
 def format_strength(strength_value):
-    """Format signal strength as visual bar."""
-    bars = "=" * strength_value + "-" * (5 - strength_value)
+    """Format signal strength as text."""
     levels = {5: "EXTREME", 4: "STRONG", 3: "MODERATE", 2: "FAIR", 1: "WEAK"}
-    return f"[{bars}] {levels.get(strength_value, '')}"
+    return levels.get(strength_value, "")
 
 
 @st.cache_data(ttl=300)
@@ -1505,36 +826,24 @@ def run_scan(symbols, include_options=False):
 # =============================================================================
 
 def main():
-    # Matrix Rain Background - refined, fewer columns
-    rain_columns = ""
-    matrix_chars = "0123456789"
-
-    for i in range(35):
-        left = i * 2.9
-        duration = random.uniform(50, 120)
-        delay = random.uniform(0, 60)
-        text = "".join([random.choice(matrix_chars) + "\n" for _ in range(40)])
-        rain_columns += f'<div class="rain-column" style="left:{left}%;animation-duration:{duration}s;animation-delay:-{delay}s;">{text}</div>'
-
-    st.markdown(f'<div class="matrix-rain-container">{rain_columns}</div>', unsafe_allow_html=True)
-
-    # Header
     now = datetime.now()
-    market_status = "MARKET OPEN" if (9 <= now.hour < 16 and now.weekday() < 5) else "MARKET CLOSED"
+    market_open = 9 <= now.hour < 16 and now.weekday() < 5
+    market_status = "MARKET OPEN" if market_open else "MARKET CLOSED"
 
+    # Page Header
     st.markdown(f"""
-    <div class="terminal-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div class="page-header">
+        <div class="page-header-row">
             <div>
-                <h1 class="terminal-title" data-text="VOLATILITY TERMINAL" style="color: #00ff41 !important; text-shadow: 0 0 10px rgba(0,255,65,0.4);">VOLATILITY TERMINAL</h1>
-                <p class="terminal-subtitle">NASDAQ OPTIONS SIGNAL DETECTION</p>
+                <div class="headline headline-lg">VOLATILITY SCANNER</div>
+                <div class="label" style="margin-top: 8px;">NASDAQ-100 OPTIONS SIGNAL DETECTION</div>
             </div>
             <div style="text-align: right;">
-                <p class="terminal-time" style="color: #00ff41;">{now.strftime("%Y.%m.%d")}</p>
-                <p class="terminal-time cursor-blink" style="color: #00ff41;"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</p>
-                <p class="terminal-subtitle" style="margin-top: 12px;">
-                    <span class="status-dot {'active' if 'OPEN' in market_status else ''}"></span>{market_status}
-                </p>
+                <div class="time-display">{now.strftime("%Y.%m.%d")}</div>
+                <div class="time-display"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</div>
+                <div class="market-status" style="margin-top: 8px;">
+                    <span class="status-dot {'active' if market_open else ''}"></span>{market_status}
+                </div>
             </div>
         </div>
     </div>
@@ -1551,7 +860,7 @@ def main():
         )
 
     with col3:
-        if st.button("EXECUTE SCAN"):
+        if st.button("SCAN"):
             st.cache_data.clear()
 
     # Determine symbols
@@ -1563,77 +872,51 @@ def main():
         symbols = NASDAQ_100
 
     # Run scan
-    with st.spinner(""):
+    scan_time = datetime.now()
+    with st.spinner("Scanning..."):
         try:
             screened, signals = run_scan(symbols)
         except Exception as e:
-            st.error(f"SCAN ERROR: {e}")
+            st.error(f"Scan error: {e}")
             return
 
-    # Metrics with animated counters
+    # Data freshness
+    st.markdown(f'<div class="freshness">Last scanned: {scan_time.strftime("%I:%M %p")} ET</div>', unsafe_allow_html=True)
+
+    # Metrics
     strong_signals = len([s for s in signals if s.strength.value >= 4])
 
     st.markdown(f"""
     <div class="metric-grid">
         <div class="metric-card">
-            <div class="metric-label">Symbols Scanned</div>
-            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(symbols)}">{len(symbols)}</span></div>
+            <div class="metric-card-label">Symbols Scanned</div>
+            <div class="metric-card-value">{len(symbols)}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Passed Filters</div>
-            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(screened)}">{len(screened)}</span></div>
+            <div class="metric-card-label">Passed Filters</div>
+            <div class="metric-card-value">{len(screened)}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Active Signals</div>
-            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{len(signals)}">{len(signals)}</span></div>
+            <div class="metric-card-label">Active Signals</div>
+            <div class="metric-card-value">{len(signals)}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Strong Signals</div>
-            <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{strong_signals}">{strong_signals}</span></div>
+            <div class="metric-card-label">Strong Signals</div>
+            <div class="metric-card-value">{strong_signals}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     # PRIMARY SIGNAL HERO PANEL
-    put_signals = [s for s in signals if s.signal_type == SignalType.PUT_OPPORTUNITY]
-    strong_puts = [s for s in put_signals if s.strength.value >= 4]
-
-    if strong_puts:
-        primary = max(strong_puts, key=lambda s: s.key_metrics.get('rsi', 0))
-        primary_timing = get_optimal_entry_time(primary)
-        signal_class = "put"
-
-        st.markdown(f"""
-        <div class="hero-panel">
-            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
-            <div class="hero-content">
-                <div class="hero-main">
-                    <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
-                    <div class="hero-symbol">{primary.symbol}</div>
-                    <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
-                </div>
-                <div class="hero-center">
-                    <div class="hero-timing-label" style="color: #00ff41;">OPTIMAL ENTRY</div>
-                    <div class="hero-timing-value">{primary_timing['window']}</div>
-                    <div class="hero-timing-next" style="color: #00e5ff;">{primary_timing['next']}</div>
-                </div>
-                <div class="hero-right">
-                    <div class="hero-action-label" style="color: #00e5ff;">ACTION</div>
-                    <div class="hero-action-text">Buy puts at strike</div>
-                    <div class="hero-strike" style="color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,0.2);">${primary.suggested_strike:.2f}</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    elif signals:
-        primary = max(signals, key=lambda s: s.strength.value)
+    if signals:
+        primary = max(signals, key=lambda s: (s.strength.value, s.risk_reward_ratio or 0))
         primary_timing = get_optimal_entry_time(primary)
 
         signal_class = {
             SignalType.PUT_OPPORTUNITY: "put",
             SignalType.CALL_OPPORTUNITY: "call",
             SignalType.HEDGE_SIGNAL: "hedge",
-            SignalType.VOLATILITY_PLAY: "hedge"
+            SignalType.VOLATILITY_PLAY: "volatility"
         }.get(primary.signal_type, "hedge")
 
         action_text = {
@@ -1644,23 +927,23 @@ def main():
         }.get(primary.signal_type, "Consider position at")
 
         st.markdown(f"""
-        <div class="hero-panel">
-            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
+        <div class="hero-panel {signal_class}">
+            <div class="hero-label">PRIMARY SIGNAL</div>
             <div class="hero-content">
-                <div class="hero-main">
-                    <span class="hero-signal-type {signal_class}">{primary.signal_type.value}</span>
+                <div class="hero-section">
+                    <span class="signal-type-badge {signal_class}">{primary.signal_type.value}</span>
                     <div class="hero-symbol">{primary.symbol}</div>
-                    <div class="hero-price"><span class="jitter-value" data-base="{primary.current_price:.2f}">${primary.current_price:.2f}</span></div>
+                    <div class="hero-price">${primary.current_price:.2f}</div>
                 </div>
-                <div class="hero-center">
-                    <div class="hero-timing-label" style="color: #00ff41;">OPTIMAL ENTRY</div>
-                    <div class="hero-timing-value">{primary_timing['window']}</div>
-                    <div class="hero-timing-next" style="color: #00e5ff;">{primary_timing['next']}</div>
+                <div class="hero-section">
+                    <div class="timing-label">OPTIMAL ENTRY</div>
+                    <div class="timing-value">{primary_timing['window']}</div>
+                    <div class="timing-next">{primary_timing['next']}</div>
                 </div>
-                <div class="hero-right">
-                    <div class="hero-action-label" style="color: #00e5ff;">ACTION</div>
-                    <div class="hero-action-text">{action_text}</div>
-                    <div class="hero-strike" style="color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,0.2);">${primary.suggested_strike:.2f}</div>
+                <div class="hero-section">
+                    <div class="action-label">ACTION</div>
+                    <div class="action-text">{action_text}</div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; margin-top: 8px;">${primary.suggested_strike:.2f}</div>
                 </div>
             </div>
         </div>
@@ -1668,9 +951,10 @@ def main():
     else:
         st.markdown("""
         <div class="hero-panel">
-            <div class="hero-label" style="color: #00ff41;">PRIMARY SIGNAL</div>
-            <div class="no-signal-hero">
-                <div class="no-signal-text">SCANNING FOR OPPORTUNITIES...</div>
+            <div class="hero-label">PRIMARY SIGNAL</div>
+            <div class="empty-state">
+                <div class="empty-state-text">SCANNING FOR OPPORTUNITIES</div>
+                <div class="empty-state-sub">No actionable signals in current scan</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1679,7 +963,7 @@ def main():
     avg_rsi = sum(s.rsi for s in screened) / len(screened) if screened else 0
     overbought_count = len([s for s in screened if s.rsi > 70])
     oversold_count = len([s for s in screened if s.rsi < 30])
-    high_vol_count = len([s for s in screened if s.volatility_regime in ['HIGH', 'EXTREME']])
+    high_vol_count = len([s for s in screened if s.volatility_regime in ('HIGH', 'EXTREME', 'high', 'extreme')])
     put_count = len([s for s in signals if s.signal_type == SignalType.PUT_OPPORTUNITY])
     call_count = len([s for s in signals if s.signal_type == SignalType.CALL_OPPORTUNITY])
 
@@ -1714,112 +998,149 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+    # Market summary (educational)
+    market_summary = generate_market_summary(screened, signals)
+    st.markdown(f'<div class="market-summary">{market_summary}</div>', unsafe_allow_html=True)
+
     # Tabs
     tab1, tab2, tab3, tab4 = st.tabs(["SIGNALS", "SCREENER", "TRACKER", "DOCUMENTATION"])
 
+    # ─── SIGNALS TAB ───
     with tab1:
         if not signals:
             st.markdown("""
-            <div style="text-align: center; padding: 80px 0; color: #333;">
-                <p style="font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 3px; color: #444;">
-                    NO ACTIONABLE SIGNALS DETECTED
-                </p>
-                <p style="font-size: 11px; margin-top: 12px; color: #333;">
-                    Expand scan universe or wait for market conditions to change
-                </p>
+            <div class="empty-state">
+                <div class="empty-state-text">NO ACTIONABLE SIGNALS DETECTED</div>
+                <div class="empty-state-sub">Expand scan universe or wait for market conditions to change</div>
             </div>
             """, unsafe_allow_html=True)
         else:
-            for idx, signal in enumerate(signals):
+            for signal in signals:
                 signal_class = {
                     SignalType.PUT_OPPORTUNITY: "put",
                     SignalType.CALL_OPPORTUNITY: "call",
                     SignalType.HEDGE_SIGNAL: "hedge",
-                    SignalType.VOLATILITY_PLAY: "hedge"
+                    SignalType.VOLATILITY_PLAY: "volatility"
                 }.get(signal.signal_type, "hedge")
 
                 timing = get_optimal_entry_time(signal)
+                summary = generate_signal_summary(signal)
 
-                price_str = f'<span class="jitter-value" data-base="{signal.current_price:.2f}">${signal.current_price:.2f}</span>' if signal.current_price else "-"
+                price_str = f"${signal.current_price:.2f}" if signal.current_price else "-"
                 strike_str = f"${signal.suggested_strike:.2f}" if signal.suggested_strike else None
                 stop_str = f"${signal.stop_loss:.2f}" if signal.stop_loss else None
                 target_str = f"${signal.target_price:.2f}" if signal.target_price else None
                 rr_str = f"{signal.risk_reward_ratio:.1f}:1" if signal.risk_reward_ratio else None
 
-                # Stagger animation delay
-                delay = 0.05 * idx
-
-                signal_html = f'''<div class="signal-card {signal_class}" style="animation-delay: {delay}s;">
-                    <div class="signal-header">
-                        <div style="display: flex; align-items: center; gap: 20px;">
-                            <span class="signal-type {signal_class}">{signal.signal_type.value}</span>
-                            <span class="signal-symbol">{signal.symbol}</span>
-                        </div>
-                        <div class="signal-strength" style="color: #00ff41;">{format_strength(signal.strength.value)}</div>
-                    </div>
-                    <div class="signal-body">
-                        <div class="signal-grid">
-                            <div class="signal-metric">
-                                <div class="signal-metric-label">Current Price</div>
-                                <div class="signal-metric-value">{price_str}</div>
-                            </div>'''
+                # Build signal card HTML
+                data_items = f'''
+                    <div class="signal-data-item">
+                        <div class="signal-data-label">Current Price</div>
+                        <div class="signal-data-value">{price_str}</div>
+                    </div>'''
 
                 if strike_str:
-                    signal_html += f'''
-                            <div class="signal-metric">
-                                <div class="signal-metric-label">Strike Price</div>
-                                <div class="signal-metric-value accent">{strike_str}</div>
-                            </div>'''
-
+                    data_items += f'''
+                    <div class="signal-data-item">
+                        <div class="signal-data-label">Strike Price</div>
+                        <div class="signal-data-value accent">{strike_str}</div>
+                    </div>'''
                 if stop_str:
-                    signal_html += f'''
-                            <div class="signal-metric">
-                                <div class="signal-metric-label">Stop Loss</div>
-                                <div class="signal-metric-value negative">{stop_str}</div>
-                            </div>'''
-
+                    data_items += f'''
+                    <div class="signal-data-item">
+                        <div class="signal-data-label">Stop Loss</div>
+                        <div class="signal-data-value negative">{stop_str}</div>
+                    </div>'''
                 if target_str:
-                    signal_html += f'''
-                            <div class="signal-metric">
-                                <div class="signal-metric-label">Target Price</div>
-                                <div class="signal-metric-value positive">{target_str}</div>
-                            </div>'''
-
+                    data_items += f'''
+                    <div class="signal-data-item">
+                        <div class="signal-data-label">Target Price</div>
+                        <div class="signal-data-value positive">{target_str}</div>
+                    </div>'''
                 if rr_str:
-                    signal_html += f'''
-                            <div class="signal-metric">
-                                <div class="signal-metric-label">Risk/Reward</div>
-                                <div class="signal-metric-value">{rr_str}</div>
-                            </div>'''
+                    data_items += f'''
+                    <div class="signal-data-item">
+                        <div class="signal-data-label">Risk/Reward</div>
+                        <div class="signal-data-value">{rr_str}</div>
+                    </div>'''
 
-                signal_html += f'''
-                        </div>
-                        <div class="timing-box">
-                            <div class="timing-label" style="color: #00ff41;">OPTIMAL ENTRY WINDOW</div>
-                            <div class="timing-value">{timing['window']}</div>
-                            <div class="timing-countdown" style="color: #00e5ff;">{timing['next']}</div>
-                            <div class="timing-note">{timing['rationale']}</div>
-                        </div>
-                        <div class="action-box">
-                            <div class="action-label" style="color: #00e5ff;">RECOMMENDED ACTION</div>
-                            <div class="action-text">{timing['action']}</div>
-                        </div>
-                        <div class="signal-rationale">
-                            <strong style="color: #555;">SIGNAL BASIS:</strong> {signal.rationale}
-                        </div>
-                    </div>
-                </div>'''
+                # IV Rank inline
+                iv_rank = signal.key_metrics.get("iv_rank")
+                iv_html = ""
+                if iv_rank is not None:
+                    iv_explanation = generate_iv_explanation(iv_rank)
+                    iv_html = f'<div class="iv-inline">{iv_explanation}</div>'
 
-                st.markdown(signal_html, unsafe_allow_html=True)
+                risk = generate_risk_note(signal)
 
+                st.markdown(f'''<div class="signal-card {signal_class}">
+<div class="signal-header">
+<div style="display: flex; align-items: center; gap: 16px;">
+<span class="signal-type-badge {signal_class}">{signal.signal_type.value}</span>
+<span class="signal-symbol">{signal.symbol}</span>
+</div>
+<div class="signal-strength-text">{format_strength(signal.strength.value)}</div>
+</div>
+<div class="signal-body">
+<div class="signal-summary">{summary}</div>
+<div class="signal-data-grid">{data_items}</div>
+{iv_html}
+<div class="timing-section">
+<div class="timing-label">OPTIMAL ENTRY WINDOW</div>
+<div class="timing-value">{timing['window']}</div>
+<div class="timing-next">{timing['next']}</div>
+<div class="timing-note">{timing['rationale']}</div>
+</div>
+<div class="action-section">
+<div class="action-label">RECOMMENDED ACTION</div>
+<div class="action-text">{timing['action']}</div>
+</div>
+<div class="risk-note"><strong>Risk:</strong> {risk}</div>
+</div>
+</div>''', unsafe_allow_html=True)
+
+                # Educational expanders (Streamlit native — can't be in raw HTML)
+                col_exp1, col_exp2, col_exp3 = st.columns(3)
+
+                with col_exp1:
+                    with st.expander("Why this strike price?"):
+                        st.markdown(f'<div class="body-light">{generate_strike_explanation(signal)}</div>', unsafe_allow_html=True)
+
+                with col_exp2:
+                    with st.expander("Options breakdown"):
+                        greeks = getattr(signal, "greeks", None)
+                        if greeks:
+                            greek_items = format_greeks_educational(greeks)
+                            for g in greek_items:
+                                st.markdown(f"""<div style="margin-bottom: 12px;">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;">{g['name']}: {g['value']}</span>
+<div class="body-light" style="margin-top: 2px;">{g['explanation']}</div>
+</div>""", unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div class="body-light">Greeks data not available for this signal.</div>', unsafe_allow_html=True)
+
+                with col_exp3:
+                    with st.expander("Signal strength"):
+                        breakdown = generate_strength_breakdown(signal)
+                        st.code(breakdown, language=None)
+
+    # ─── SCREENER TAB ───
     with tab2:
         if not screened:
             st.markdown("""
-            <div style="text-align: center; padding: 80px 0; color: #333;">
-                <p style="font-family: 'JetBrains Mono', monospace;">NO DATA</p>
+            <div class="empty-state">
+                <div class="empty-state-text">NO DATA</div>
             </div>
             """, unsafe_allow_html=True)
         else:
+            st.markdown("""
+            <div class="screener-legend">
+                <span class="neg">Red RSI</span> = overbought (may pull back) &nbsp;&middot;&nbsp;
+                <span class="pos">Green RSI</span> = oversold (may bounce) &nbsp;&middot;&nbsp;
+                Regime = how volatile the stock is acting compared to normal
+            </div>
+            """, unsafe_allow_html=True)
+
             table_rows = ""
             for s in screened:
                 rsi_val = s.rsi if s.rsi else 0
@@ -1838,7 +1159,7 @@ def main():
                     <td class="{rsi_class}">{rsi_val:.1f}</td>
                     <td>{atr_str}</td>
                     <td>{hv_str}</td>
-                    <td style="text-transform: uppercase; font-size: 10px; letter-spacing: 1px;">{regime_str}</td>
+                    <td style="text-transform: uppercase; font-size: 11px; letter-spacing: 1px;">{regime_str}</td>
                 </tr>'''
 
             st.markdown(f"""
@@ -1848,10 +1169,10 @@ def main():
                         <th>Symbol</th>
                         <th>Price</th>
                         <th>Change</th>
-                        <th>RSI</th>
-                        <th>ATR Percentile</th>
-                        <th>Historical Vol</th>
-                        <th>Regime</th>
+                        <th title="Momentum score (0-100). Above 70 = overbought, below 30 = oversold">RSI</th>
+                        <th title="How volatile vs last 100 days. Higher = more movement">ATR Percentile</th>
+                        <th title="How much the price swings per year, as a percent">Historical Vol</th>
+                        <th title="Volatility level: LOW / NORMAL / HIGH / EXTREME">Regime</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1860,6 +1181,7 @@ def main():
             </table>
             """, unsafe_allow_html=True)
 
+    # ─── TRACKER TAB ───
     with tab3:
         tracker = PredictionTracker()
 
@@ -1882,101 +1204,75 @@ def main():
 
         stats = tracker.get_statistics()
 
+        win_color = "var(--positive)" if stats['win_rate'] >= 50 else "var(--negative)"
+
         st.markdown(f"""
-        <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important;
-                   letter-spacing: 3px; margin: 0 0 24px 0; font-weight: 600;">
-            PREDICTION PERFORMANCE
-        </h3>
+        <div class="headline headline-sm" style="margin-bottom: 24px;">PREDICTION PERFORMANCE</div>
 
         <div class="metric-grid">
             <div class="metric-card">
-                <div class="metric-label">Total Predictions</div>
-                <div class="metric-value" style="color: #00ff41;"><span class="animate-count" data-target="{stats['total_predictions']}">{stats['total_predictions']}</span></div>
+                <div class="metric-card-label">Total Predictions</div>
+                <div class="metric-card-value">{stats['total_predictions']}</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Win Rate</div>
-                <div class="metric-value" style="color: {'#00ff41' if stats['win_rate'] >= 50 else '#ff2d55'} !important;">{stats['win_rate']:.1f}%</div>
+                <div class="metric-card-label">Win Rate</div>
+                <div class="metric-card-value" style="color: {win_color} !important;">{stats['win_rate']:.1f}%</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Wins / Losses</div>
-                <div class="metric-value" style="color: #00ff41;"><span style="color: #00ff41;">{stats['wins']}</span> / <span style="color: #ff2d55;">{stats['losses']}</span></div>
+                <div class="metric-card-label">Wins / Losses</div>
+                <div class="metric-card-value"><span style="color: var(--positive);">{stats['wins']}</span> / <span style="color: var(--negative);">{stats['losses']}</span></div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Pending</div>
-                <div class="metric-value" style="color: #00e5ff !important;">{stats['pending']}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="metric-grid" style="margin-top: 16px;">
-            <div class="metric-card">
-                <div class="metric-label">Avg Win</div>
-                <div class="metric-value positive">+{stats['avg_win_pct']:.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Avg Loss</div>
-                <div class="metric-value negative">{stats['avg_loss_pct']:.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Profit Factor</div>
-                <div class="metric-value" style="color: #00ff41;">{stats['profit_factor']:.2f}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Last 30 Days</div>
-                <div class="metric-value" style="color: #00ff41;">{stats['recent_30d']['win_rate']:.0f}%</div>
+                <div class="metric-card-label">Pending</div>
+                <div class="metric-card-value">{stats['pending']}</div>
             </div>
         </div>
 
-        <div class="section-divider"></div>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-card-label">Avg Win</div>
+                <div class="metric-card-value" style="color: var(--positive) !important;">+{stats['avg_win_pct']:.1f}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Avg Loss</div>
+                <div class="metric-card-value" style="color: var(--negative) !important;">{stats['avg_loss_pct']:.1f}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Profit Factor</div>
+                <div class="metric-card-value">{stats['profit_factor']:.2f}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Last 30 Days</div>
+                <div class="metric-card-value">{stats['recent_30d']['win_rate']:.0f}%</div>
+            </div>
+        </div>
         """, unsafe_allow_html=True)
 
         if stats['by_signal_type']:
-            st.markdown("""
-            <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
-                       letter-spacing: 2px; margin: 24px 0 16px 0; font-weight: 600;">
-                BY SIGNAL TYPE
-            </h3>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">BY SIGNAL TYPE</div>', unsafe_allow_html=True)
 
             type_rows = ""
             for sig_type, data in stats['by_signal_type'].items():
-                color = "#ff2d55" if "PUT" in sig_type else "#00ff41" if "CALL" in sig_type else "#ffcc00"
                 type_rows += f"""
                 <tr>
-                    <td style="color: {color}; font-weight: 600;">{sig_type}</td>
+                    <td style="font-weight: 600;">{sig_type}</td>
                     <td>{data['total']}</td>
                     <td class="positive">{data['wins']}</td>
                     <td class="negative">{data['losses']}</td>
-                    <td style="color: {'#00ff41' if data['win_rate'] >= 50 else '#ff2d55'};">{data['win_rate']:.1f}%</td>
+                    <td style="color: {'var(--positive)' if data['win_rate'] >= 50 else 'var(--negative)'};">{data['win_rate']:.1f}%</td>
                 </tr>
                 """
 
             st.markdown(f"""
             <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Signal Type</th>
-                        <th>Total</th>
-                        <th>Wins</th>
-                        <th>Losses</th>
-                        <th>Win Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {type_rows}
-                </tbody>
+                <thead><tr><th>Signal Type</th><th>Total</th><th>Wins</th><th>Losses</th><th>Win Rate</th></tr></thead>
+                <tbody>{type_rows}</tbody>
             </table>
             """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-
-        st.markdown("""
-        <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
-                   letter-spacing: 2px; margin: 24px 0 16px 0; font-weight: 600;">
-            RECENT PREDICTIONS
-        </h3>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">RECENT PREDICTIONS</div>', unsafe_allow_html=True)
 
         predictions = tracker.get_predictions(limit=20)
 
@@ -1984,14 +1280,12 @@ def main():
             pred_rows = ""
             for pred in predictions:
                 status_color = {
-                    PredictionStatus.WIN: "#00ff41",
-                    PredictionStatus.LOSS: "#ff2d55",
-                    PredictionStatus.PENDING: "#00e5ff",
-                    PredictionStatus.EXPIRED: "#4a4a4a",
-                    PredictionStatus.CANCELLED: "#4a4a4a"
-                }.get(pred.status, "#ffffff")
-
-                signal_color = "#ff2d55" if "PUT" in pred.signal_type else "#00ff41" if "CALL" in pred.signal_type else "#ffcc00"
+                    PredictionStatus.WIN: "var(--positive)",
+                    PredictionStatus.LOSS: "var(--negative)",
+                    PredictionStatus.PENDING: "var(--signal-hedge)",
+                    PredictionStatus.EXPIRED: "var(--text-tertiary)",
+                    PredictionStatus.CANCELLED: "var(--text-tertiary)"
+                }.get(pred.status, "inherit")
 
                 profit_display = f"{pred.profit_pct:+.1f}%" if pred.profit_pct is not None else "-"
                 profit_class = "positive" if pred.profit_pct and pred.profit_pct > 0 else "negative" if pred.profit_pct and pred.profit_pct < 0 else ""
@@ -2003,7 +1297,7 @@ def main():
                 <tr>
                     <td>{date_display}</td>
                     <td style="font-weight: 600;">{pred.symbol}</td>
-                    <td style="color: {signal_color};">{pred.signal_type}</td>
+                    <td>{pred.signal_type}</td>
                     <td>${pred.entry_price:.2f}</td>
                     <td>{outcome_display}</td>
                     <td class="{profit_class}">{profit_display}</td>
@@ -2013,41 +1307,20 @@ def main():
 
             st.markdown(f"""
             <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Symbol</th>
-                        <th>Type</th>
-                        <th>Entry</th>
-                        <th>Outcome</th>
-                        <th>P/L</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {pred_rows}
-                </tbody>
+                <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Entry</th><th>Outcome</th><th>P/L</th><th>Status</th></tr></thead>
+                <tbody>{pred_rows}</tbody>
             </table>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
-            <div style="text-align: center; padding: 40px 0; color: #333;">
-                <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 2px; color: #444;">
-                    NO PREDICTIONS RECORDED YET
-                </p>
-                <p style="font-size: 11px; margin-top: 8px; color: #333;">
-                    Predictions will appear here as signals are generated
-                </p>
+            <div class="empty-state">
+                <div class="empty-state-text">NO PREDICTIONS YET</div>
+                <div class="empty-state-sub">Predictions appear as signals are generated</div>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-        st.markdown("""
-        <h3 style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #00ff41 !important;
-                   letter-spacing: 2px; margin: 24px 0 16px 0; font-weight: 600;">
-            MANUAL RESOLUTION
-        </h3>
-        """, unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">MANUAL RESOLUTION</div>', unsafe_allow_html=True)
 
         pending_preds = tracker.get_predictions(status=PredictionStatus.PENDING)
         if pending_preds:
@@ -2074,68 +1347,78 @@ def main():
                         )
                         st.rerun()
         else:
-            st.markdown("""
-            <p style="font-size: 11px; color: #333;">No pending predictions to resolve.</p>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="body-light">No pending predictions to resolve.</div>', unsafe_allow_html=True)
 
+    # ─── DOCUMENTATION TAB ───
     with tab4:
-        doc_signal_types = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">SIGNAL TYPES</h3>
-<table class="data-table">
-<thead><tr><th>Type</th><th>Trigger Conditions</th><th>Action</th></tr></thead>
-<tbody>
-<tr><td style="color: #ff2d55; font-weight: 600;">PUT</td><td>RSI above 70, price above upper Bollinger Band, elevated ATR</td><td>Buy put options, anticipate mean reversion</td></tr>
-<tr><td style="color: #00ff41; font-weight: 600;">CALL</td><td>RSI below 30, price below lower Bollinger Band</td><td>Buy call options, anticipate oversold bounce</td></tr>
-<tr><td style="color: #ffcc00; font-weight: 600;">HEDGE</td><td>Volatility regime HIGH or EXTREME, HV rank above 80</td><td>Buy protective puts on existing positions</td></tr>
-</tbody>
-</table>'''
-        st.markdown(doc_signal_types, unsafe_allow_html=True)
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">SIGNAL TYPES</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <table class="data-table">
+        <thead><tr><th>Type</th><th>What It Means</th><th>Action</th></tr></thead>
+        <tbody>
+        <tr><td style="color: var(--signal-bearish); font-weight: 600;">PUT</td>
+            <td>The stock has been rising too fast (RSI above 70, price above its normal range). Historically, these stretched conditions tend to snap back.</td>
+            <td>Buy put options to profit from a potential decline</td></tr>
+        <tr><td style="color: var(--signal-bullish); font-weight: 600;">CALL</td>
+            <td>The stock has been beaten down (RSI below 30, price below its normal range). Oversold stocks often bounce back.</td>
+            <td>Buy call options to profit from a potential recovery</td></tr>
+        <tr><td style="color: var(--signal-hedge); font-weight: 600;">HEDGE</td>
+            <td>Volatility is very high — the market is chaotic. This isn't a directional bet; it's protection.</td>
+            <td>Buy protective puts on positions you already own</td></tr>
+        <tr><td style="color: var(--signal-volatility); font-weight: 600;">VOLATILITY</td>
+            <td>The stock is swinging wildly but options are cheap. The market hasn't priced in the actual movement yet.</td>
+            <td>Buy a straddle (call + put) to profit from a big move in either direction</td></tr>
+        </tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-        doc_timing = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">ENTRY TIMING METHODOLOGY</h3>
-<table class="data-table">
-<thead><tr><th>Signal</th><th>Window</th><th>Logic</th></tr></thead>
-<tbody>
-<tr><td>PUT Strong</td><td>10:00-10:30 AM</td><td>Morning rally exhaustion point</td></tr>
-<tr><td>PUT Moderate</td><td>2:30-3:00 PM</td><td>Afternoon distribution phase</td></tr>
-<tr><td>CALL Strong</td><td>9:45-10:15 AM</td><td>Post-open panic exhaustion</td></tr>
-<tr><td>CALL Moderate</td><td>3:00-3:30 PM</td><td>Pre-close momentum buildup</td></tr>
-<tr><td>HEDGE</td><td>11:30 AM-1:00 PM</td><td>Midday lull, tighter spreads</td></tr>
-</tbody>
-</table>'''
-        st.markdown(doc_timing, unsafe_allow_html=True)
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">ENTRY TIMING</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <table class="data-table">
+        <thead><tr><th>Signal</th><th>Window</th><th>Why This Time</th></tr></thead>
+        <tbody>
+        <tr><td>PUT (Strong)</td><td>10:00-10:30 AM</td><td>Morning buying often exhausts here — sellers step in after the initial rush</td></tr>
+        <tr><td>PUT (Moderate)</td><td>2:30-3:00 PM</td><td>Institutional profit-taking in the afternoon creates natural selling pressure</td></tr>
+        <tr><td>CALL (Strong)</td><td>9:45-10:15 AM</td><td>Opening panic tends to exhaust quickly — rebounds start within 30 minutes</td></tr>
+        <tr><td>CALL (Moderate)</td><td>3:00-3:30 PM</td><td>Short covering and momentum buying often accelerate before market close</td></tr>
+        <tr><td>HEDGE</td><td>11:30 AM-1:00 PM</td><td>Midday is quieter — tighter bid/ask spreads mean better prices for protection</td></tr>
+        </tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-        doc_indicators = '''<h3 style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00ff41 !important; letter-spacing: 3px; margin: 32px 0 20px 0; font-weight: 600;">INDICATOR DEFINITIONS</h3>
-<table class="data-table">
-<thead><tr><th>Indicator</th><th>Definition</th><th>Signal Threshold</th></tr></thead>
-<tbody>
-<tr><td>RSI</td><td>14-period Relative Strength Index</td><td>Above 70 overbought / Below 30 oversold</td></tr>
-<tr><td>ATR %ile</td><td>Current ATR relative to 100-day range</td><td>Above 70% indicates elevated volatility</td></tr>
-<tr><td>Hist Vol</td><td>20-day annualized standard deviation</td><td>Above 40% is high volatility</td></tr>
-<tr><td>BB %B</td><td>Price position within Bollinger Bands</td><td>Above 1.0 or below 0.0 triggers signals</td></tr>
-</tbody>
-</table>'''
-        st.markdown(doc_indicators, unsafe_allow_html=True)
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">INDICATOR DEFINITIONS</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <table class="data-table">
+        <thead><tr><th>Indicator</th><th>What It Measures</th><th>Key Levels</th></tr></thead>
+        <tbody>
+        <tr><td>RSI</td><td>Momentum — how aggressively the stock has been bought or sold over the last 14 days</td><td>Above 70 = overbought (may drop). Below 30 = oversold (may bounce)</td></tr>
+        <tr><td>ATR Percentile</td><td>How volatile the stock is compared to its own last 100 days of movement</td><td>Above 70% = elevated volatility. Above 90% = extreme</td></tr>
+        <tr><td>Historical Vol</td><td>How much the price typically swings per year, based on the last 20 days</td><td>Above 40% is considered high volatility</td></tr>
+        <tr><td>BB %B</td><td>Where the price sits within its normal range (Bollinger Bands)</td><td>Above 1.0 = above the range (bearish signal). Below 0.0 = below the range (bullish signal)</td></tr>
+        <tr><td>IV Rank</td><td>How expensive options are now compared to the last year</td><td>Above 50 = pricier than average. Below 30 = cheap (good time to buy options)</td></tr>
+        </tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-        doc_disclaimer = '''<p style="font-size: 10px; color: #4a4a4a; letter-spacing: 1px; line-height: 2; margin-top: 40px;">
-This terminal provides analytical signals for informational purposes only and does not constitute financial advice. Options trading involves substantial risk of loss. Past performance does not guarantee future results. Conduct independent research and consider consulting a licensed financial advisor before making investment decisions.
-</p>'''
-        st.markdown(doc_disclaimer, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="body-light" style="margin-top: 24px; font-size: 11px; color: var(--text-tertiary);">
+        This scanner provides analytical signals for informational and educational purposes only. It does not constitute financial advice.
+        Options trading involves substantial risk of loss. Past performance does not guarantee future results.
+        Conduct independent research and consider consulting a licensed financial advisor before making investment decisions.
+        </div>
+        """, unsafe_allow_html=True)
 
     # Footer
     st.markdown(f"""
-    <div class="section-divider"></div>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; animation: fadeIn 1s var(--ease-out-expo) 0.8s both;">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #1a1a1a; letter-spacing: 2px;">
-            VOLATILITY TERMINAL v3.0
-        </span>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #1a1a1a; letter-spacing: 2px;">
-            DATA SOURCE: ALPACA MARKETS API
-        </span>
+    <div class="footer">
+        <span class="footer-text">VOLATILITY SCANNER v4.0</span>
+        <span class="footer-text">DATA SOURCE: YAHOO FINANCE / ALPACA MARKETS</span>
     </div>
     """, unsafe_allow_html=True)
 
