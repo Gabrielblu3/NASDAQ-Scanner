@@ -1106,130 +1106,131 @@ def main():
     # Data freshness
     st.markdown(f'<div class="freshness">Last scanned: {scan_time.strftime("%I:%M %p")} ET</div>', unsafe_allow_html=True)
 
-    # Metrics
-    strong_signals = len([s for s in signals if s.strength.value >= 4])
-
-    st.markdown(f"""
-    <div class="metric-grid">
-        <div class="metric-card">
-            <div class="metric-card-label">Symbols Scanned</div>
-            <div class="metric-card-value">{len(symbols)}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-card-label">Passed Filters</div>
-            <div class="metric-card-value">{len(screened)}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-card-label">Active Signals</div>
-            <div class="metric-card-value">{len(signals)}</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-card-label">Strong Signals</div>
-            <div class="metric-card-value">{strong_signals}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # PRIMARY SIGNAL HERO PANEL
-    if signals:
-        primary = max(signals, key=lambda s: (s.strength.value, s.risk_reward_ratio or 0))
-        primary_timing = get_optimal_entry_time(primary)
-
-        signal_class = {
-            SignalType.PUT_OPPORTUNITY: "put",
-            SignalType.CALL_OPPORTUNITY: "call",
-            SignalType.HEDGE_SIGNAL: "hedge",
-            SignalType.VOLATILITY_PLAY: "volatility"
-        }.get(primary.signal_type, "hedge")
-
-        action_text = {
-            SignalType.PUT_OPPORTUNITY: "Buy puts at strike",
-            SignalType.CALL_OPPORTUNITY: "Buy calls at strike",
-            SignalType.HEDGE_SIGNAL: "Hedge with puts at",
-            SignalType.VOLATILITY_PLAY: "Enter volatility play at"
-        }.get(primary.signal_type, "Consider position at")
-
-        st.markdown(f"""
-        <div class="hero-panel {signal_class}">
-            <div class="hero-label">PRIMARY SIGNAL</div>
-            <div class="hero-content">
-                <div class="hero-section">
-                    <span class="signal-type-badge {signal_class}">{primary.signal_type.value}</span>
-                    <div class="hero-symbol">{primary.symbol}</div>
-                    <div class="hero-price">${primary.current_price:.2f}</div>
-                </div>
-                <div class="hero-section">
-                    <div class="timing-label">OPTIMAL ENTRY</div>
-                    <div class="timing-value">{primary_timing['window']}</div>
-                    <div class="timing-next">{primary_timing['next']}</div>
-                </div>
-                <div class="hero-section">
-                    <div class="action-label">ACTION</div>
-                    <div class="action-text">{action_text}</div>
-                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; margin-top: 8px;">${primary.suggested_strike:.2f}</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="hero-panel">
-            <div class="hero-label">PRIMARY SIGNAL</div>
-            <div class="empty-state">
-                <div class="empty-state-text">SCANNING FOR OPPORTUNITIES</div>
-                <div class="empty-state-sub">No actionable signals in current scan</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # MARKET OVERVIEW STRIP
-    avg_rsi = sum(s.rsi for s in screened) / len(screened) if screened else 0
-    overbought_count = len([s for s in screened if s.rsi > 70])
-    oversold_count = len([s for s in screened if s.rsi < 30])
-    high_vol_count = len([s for s in screened if s.volatility_regime in ('HIGH', 'EXTREME', 'high', 'extreme')])
-    put_count = len([s for s in signals if s.signal_type == SignalType.PUT_OPPORTUNITY])
-    call_count = len([s for s in signals if s.signal_type == SignalType.CALL_OPPORTUNITY])
-
-    rsi_class = "negative" if avg_rsi > 60 else "positive" if avg_rsi < 40 else ""
-
-    st.markdown(f"""
-    <div class="market-strip">
-        <div class="market-strip-item">
-            <div class="market-strip-label">AVG RSI</div>
-            <div class="market-strip-value {rsi_class}">{avg_rsi:.1f}</div>
-        </div>
-        <div class="market-strip-item">
-            <div class="market-strip-label">OVERBOUGHT</div>
-            <div class="market-strip-value negative">{overbought_count}</div>
-        </div>
-        <div class="market-strip-item">
-            <div class="market-strip-label">OVERSOLD</div>
-            <div class="market-strip-value positive">{oversold_count}</div>
-        </div>
-        <div class="market-strip-item">
-            <div class="market-strip-label">HIGH VOL</div>
-            <div class="market-strip-value warning">{high_vol_count}</div>
-        </div>
-        <div class="market-strip-item">
-            <div class="market-strip-label">PUT SIGNALS</div>
-            <div class="market-strip-value negative">{put_count}</div>
-        </div>
-        <div class="market-strip-item">
-            <div class="market-strip-label">CALL SIGNALS</div>
-            <div class="market-strip-value positive">{call_count}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Market summary (educational)
-    market_summary = generate_market_summary(screened, signals)
-    st.markdown(f'<div class="market-summary">{market_summary}</div>', unsafe_allow_html=True)
-
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["SIGNALS", "SCREENER", "TRACKER", "DOCUMENTATION"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["SIGNALS", "SCREENER", "TRACKER", "DOCUMENTATION", "PROFILE"])
 
     # ─── SIGNALS TAB ───
     with tab1:
+
+        # Metrics
+        strong_signals = len([s for s in signals if s.strength.value >= 4])
+
+        st.markdown(f"""
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-card-label">Symbols Scanned</div>
+                <div class="metric-card-value">{len(symbols)}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Passed Filters</div>
+                <div class="metric-card-value">{len(screened)}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Active Signals</div>
+                <div class="metric-card-value">{len(signals)}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-card-label">Strong Signals</div>
+                <div class="metric-card-value">{strong_signals}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # PRIMARY SIGNAL HERO PANEL
+        if signals:
+            primary = max(signals, key=lambda s: (s.strength.value, s.risk_reward_ratio or 0))
+            primary_timing = get_optimal_entry_time(primary)
+
+            signal_class = {
+                SignalType.PUT_OPPORTUNITY: "put",
+                SignalType.CALL_OPPORTUNITY: "call",
+                SignalType.HEDGE_SIGNAL: "hedge",
+                SignalType.VOLATILITY_PLAY: "volatility"
+            }.get(primary.signal_type, "hedge")
+
+            action_text = {
+                SignalType.PUT_OPPORTUNITY: "Buy puts at strike",
+                SignalType.CALL_OPPORTUNITY: "Buy calls at strike",
+                SignalType.HEDGE_SIGNAL: "Hedge with puts at",
+                SignalType.VOLATILITY_PLAY: "Enter volatility play at"
+            }.get(primary.signal_type, "Consider position at")
+
+            st.markdown(f"""
+            <div class="hero-panel {signal_class}">
+                <div class="hero-label">PRIMARY SIGNAL</div>
+                <div class="hero-content">
+                    <div class="hero-section">
+                        <span class="signal-type-badge {signal_class}">{primary.signal_type.value}</span>
+                        <div class="hero-symbol">{primary.symbol}</div>
+                        <div class="hero-price">${primary.current_price:.2f}</div>
+                    </div>
+                    <div class="hero-section">
+                        <div class="timing-label">OPTIMAL ENTRY</div>
+                        <div class="timing-value">{primary_timing['window']}</div>
+                        <div class="timing-next">{primary_timing['next']}</div>
+                    </div>
+                    <div class="hero-section">
+                        <div class="action-label">ACTION</div>
+                        <div class="action-text">{action_text}</div>
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; margin-top: 8px;">${primary.suggested_strike:.2f}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="hero-panel">
+                <div class="hero-label">PRIMARY SIGNAL</div>
+                <div class="empty-state">
+                    <div class="empty-state-text">SCANNING FOR OPPORTUNITIES</div>
+                    <div class="empty-state-sub">No actionable signals in current scan</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # MARKET OVERVIEW STRIP
+        avg_rsi = sum(s.rsi for s in screened) / len(screened) if screened else 0
+        overbought_count = len([s for s in screened if s.rsi > 70])
+        oversold_count = len([s for s in screened if s.rsi < 30])
+        high_vol_count = len([s for s in screened if s.volatility_regime in ('HIGH', 'EXTREME', 'high', 'extreme')])
+        put_count = len([s for s in signals if s.signal_type == SignalType.PUT_OPPORTUNITY])
+        call_count = len([s for s in signals if s.signal_type == SignalType.CALL_OPPORTUNITY])
+
+        rsi_class = "negative" if avg_rsi > 60 else "positive" if avg_rsi < 40 else ""
+
+        st.markdown(f"""
+        <div class="market-strip">
+            <div class="market-strip-item">
+                <div class="market-strip-label">AVG RSI</div>
+                <div class="market-strip-value {rsi_class}">{avg_rsi:.1f}</div>
+            </div>
+            <div class="market-strip-item">
+                <div class="market-strip-label">OVERBOUGHT</div>
+                <div class="market-strip-value negative">{overbought_count}</div>
+            </div>
+            <div class="market-strip-item">
+                <div class="market-strip-label">OVERSOLD</div>
+                <div class="market-strip-value positive">{oversold_count}</div>
+            </div>
+            <div class="market-strip-item">
+                <div class="market-strip-label">HIGH VOL</div>
+                <div class="market-strip-value warning">{high_vol_count}</div>
+            </div>
+            <div class="market-strip-item">
+                <div class="market-strip-label">PUT SIGNALS</div>
+                <div class="market-strip-value negative">{put_count}</div>
+            </div>
+            <div class="market-strip-item">
+                <div class="market-strip-label">CALL SIGNALS</div>
+                <div class="market-strip-value positive">{call_count}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Market summary (educational)
+        market_summary = generate_market_summary(screened, signals)
+        st.markdown(f'<div class="market-summary">{market_summary}</div>', unsafe_allow_html=True)
+
         if not signals:
             st.markdown("""
             <div class="empty-state">
@@ -1637,6 +1638,131 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
+    # ─── PROFILE TAB ───
+    with tab5:
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 4px;">YOUR PROFILE</div>', unsafe_allow_html=True)
+        st.markdown('<div class="onboarding-desc" style="margin-bottom: 24px;">Adjust anytime — changes apply to the next scan.</div>', unsafe_allow_html=True)
+
+        prof_col1, prof_col2 = st.columns(2)
+
+        with prof_col1:
+            st.markdown('<div class="label" style="margin-bottom: 4px;">BUDGET</div>', unsafe_allow_html=True)
+            new_budget = st.select_slider(
+                "Budget",
+                options=[500, 1000, 2500, 5000, 10000, 25000],
+                value=profile.budget,
+                format_func=lambda x: f"${x:,}",
+                label_visibility="collapsed",
+                key="prof_budget",
+            )
+
+            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 4px;">RISK TOLERANCE</div>', unsafe_allow_html=True)
+            risk_map = {"conservative": 0, "moderate": 1, "aggressive": 2}
+            risk_labels = ["Conservative", "Moderate", "Aggressive"]
+            risk_desc = {
+                "Conservative": "Small, safe plays. Max 15% of budget per trade.",
+                "Moderate": "Some swings for better returns. Max 30% per trade.",
+                "Aggressive": "Show me everything. Max 50% per trade.",
+            }
+            new_risk = st.radio(
+                "Risk",
+                risk_labels,
+                index=risk_map.get(profile.risk_tolerance, 1),
+                label_visibility="collapsed",
+                key="prof_risk",
+            )
+            st.markdown(f'<div class="body-light" style="font-size: 12px; margin-top: -8px;">{risk_desc[new_risk]}</div>', unsafe_allow_html=True)
+
+        with prof_col2:
+            st.markdown('<div class="label" style="margin-bottom: 4px;">EXPERIENCE LEVEL</div>', unsafe_allow_html=True)
+            exp_map = {"beginner": 0, "intermediate": 1, "experienced": 2}
+            exp_labels = ["Beginner", "Intermediate", "Experienced"]
+            new_exp = st.radio(
+                "Experience",
+                exp_labels,
+                index=exp_map.get(profile.experience, 0),
+                label_visibility="collapsed",
+                key="prof_exp",
+            )
+
+            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 8px;">TRADING ACCOUNT</div>', unsafe_allow_html=True)
+            if profile.is_connected:
+                mode_class = profile.trading_mode
+                st.markdown(f'<div style="margin-bottom: 12px;"><span class="mode-badge {mode_class}">{profile.mode_label}</span> <span style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary);">Alpaca connected</span></div>', unsafe_allow_html=True)
+                new_mode = st.radio(
+                    "Mode",
+                    ["paper", "live"],
+                    index=0 if profile.trading_mode == "paper" else 1,
+                    format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
+                    label_visibility="collapsed",
+                    key="prof_mode",
+                )
+            else:
+                st.markdown('<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-tertiary); margin-bottom: 12px;">No account connected.</div>', unsafe_allow_html=True)
+                new_mode = "browsing"
+                connect = st.checkbox("Connect Alpaca account", key="prof_connect")
+                if connect:
+                    new_key = st.text_input("API Key", type="password", key="prof_key")
+                    new_secret = st.text_input("Secret Key", type="password", key="prof_secret")
+                    new_mode = st.radio(
+                        "Mode",
+                        ["paper", "live"],
+                        format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
+                        label_visibility="collapsed",
+                        key="prof_new_mode",
+                    )
+                    if new_key and new_secret:
+                        profile.alpaca_api_key = new_key
+                        profile.alpaca_secret_key = new_secret
+
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+        # Profile summary card
+        max_pos = profile.max_position_dollars
+        st.markdown(f"""<div style="background: white; border: 1px solid var(--border-subtle); padding: 24px; max-width: 480px;">
+<div class="label" style="margin-bottom: 16px;">PROFILE SUMMARY</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+<div>
+<div class="signal-data-label">BUDGET</div>
+<div class="signal-data-value">${profile.budget:,}</div>
+</div>
+<div>
+<div class="signal-data-label">MAX POSITION</div>
+<div class="signal-data-value">${max_pos:,.0f}</div>
+</div>
+<div>
+<div class="signal-data-label">RISK LEVEL</div>
+<div class="signal-data-value" style="font-size: 16px;">{profile.risk_tolerance.title()}</div>
+</div>
+<div>
+<div class="signal-data-label">MODE</div>
+<div class="signal-data-value" style="font-size: 16px;">{profile.mode_label}</div>
+</div>
+</div>
+</div>""", unsafe_allow_html=True)
+
+        # Save changes automatically
+        changed = (
+            new_budget != profile.budget
+            or new_risk.lower() != profile.risk_tolerance
+            or new_exp.lower() != profile.experience
+            or new_mode != profile.trading_mode
+        )
+        if changed:
+            profile.budget = new_budget
+            profile.risk_tolerance = new_risk.lower()
+            profile.experience = new_exp.lower()
+            profile.trading_mode = new_mode
+            profile.save()
+            st.session_state["profile"] = profile
+
+        st.markdown("---")
+        if st.button("RESET PROFILE & START OVER"):
+            UserProfile.delete()
+            if "profile" in st.session_state:
+                del st.session_state["profile"]
+            st.rerun()
+
     # Footer
     st.markdown(f"""
     <div class="footer">
@@ -1646,120 +1772,6 @@ def main():
     """, unsafe_allow_html=True)
 
 
-def show_profile_sidebar(profile):
-    """Editable profile panel in the sidebar."""
-    with st.sidebar:
-        st.markdown('<div class="headline headline-sm" style="margin-bottom: 4px;">YOUR PROFILE</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="onboarding-desc" style="margin-bottom: 20px;">Adjust anytime — changes apply to the next scan.</div>', unsafe_allow_html=True)
-
-        # Budget
-        st.markdown('<div class="label" style="margin-bottom: 4px;">BUDGET</div>', unsafe_allow_html=True)
-        new_budget = st.select_slider(
-            "Budget",
-            options=[500, 1000, 2500, 5000, 10000, 25000],
-            value=profile.budget,
-            format_func=lambda x: f"${x:,}",
-            label_visibility="collapsed",
-            key="sidebar_budget",
-        )
-
-        # Risk tolerance
-        st.markdown('<div class="label" style="margin-top: 16px; margin-bottom: 4px;">RISK TOLERANCE</div>', unsafe_allow_html=True)
-        risk_map = {"conservative": 0, "moderate": 1, "aggressive": 2}
-        risk_labels = ["Conservative", "Moderate", "Aggressive"]
-        new_risk = st.radio(
-            "Risk",
-            risk_labels,
-            index=risk_map.get(profile.risk_tolerance, 1),
-            label_visibility="collapsed",
-            key="sidebar_risk",
-        )
-
-        # Experience
-        st.markdown('<div class="label" style="margin-top: 16px; margin-bottom: 4px;">EXPERIENCE</div>', unsafe_allow_html=True)
-        exp_map = {"beginner": 0, "intermediate": 1, "experienced": 2}
-        exp_labels = ["Beginner", "Intermediate", "Experienced"]
-        new_exp = st.radio(
-            "Experience",
-            exp_labels,
-            index=exp_map.get(profile.experience, 0),
-            label_visibility="collapsed",
-            key="sidebar_exp",
-        )
-
-        st.markdown("---")
-
-        # Trading connection status
-        st.markdown('<div class="label" style="margin-bottom: 8px;">TRADING ACCOUNT</div>', unsafe_allow_html=True)
-        if profile.is_connected:
-            mode_class = profile.trading_mode
-            st.markdown(f'<div style="margin-bottom: 12px;"><span class="mode-badge {mode_class}">{profile.mode_label}</span> <span style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary);">Alpaca connected</span></div>', unsafe_allow_html=True)
-
-            new_mode = st.radio(
-                "Mode",
-                ["paper", "live"],
-                index=0 if profile.trading_mode == "paper" else 1,
-                format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
-                label_visibility="collapsed",
-                key="sidebar_mode",
-            )
-        else:
-            st.markdown('<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-tertiary); margin-bottom: 12px;">No account connected. Add Alpaca API keys to enable trading.</div>', unsafe_allow_html=True)
-            new_mode = "browsing"
-
-            connect = st.checkbox("Connect Alpaca", key="sidebar_connect")
-            if connect:
-                new_key = st.text_input("API Key", type="password", key="sidebar_key")
-                new_secret = st.text_input("Secret Key", type="password", key="sidebar_secret")
-                new_mode = st.radio(
-                    "Mode",
-                    ["paper", "live"],
-                    format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
-                    label_visibility="collapsed",
-                    key="sidebar_new_mode",
-                )
-                if new_key and new_secret:
-                    profile.alpaca_api_key = new_key
-                    profile.alpaca_secret_key = new_secret
-
-        st.markdown("---")
-
-        # Save changes
-        changed = (
-            new_budget != profile.budget
-            or new_risk.lower() != profile.risk_tolerance
-            or new_exp.lower() != profile.experience
-            or new_mode != profile.trading_mode
-        )
-
-        if changed:
-            profile.budget = new_budget
-            profile.risk_tolerance = new_risk.lower()
-            profile.experience = new_exp.lower()
-            profile.trading_mode = new_mode
-            profile.save()
-            st.session_state["profile"] = profile
-
-        # Profile summary
-        max_pos = profile.max_position_dollars
-        st.markdown(f"""<div style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary); line-height: 1.8;">
-<strong style="color: var(--text-secondary);">Profile Summary</strong><br>
-Budget: ${profile.budget:,}<br>
-Max position: ${max_pos:,.0f} ({profile.max_position_pct:.0%} of budget)<br>
-Risk: {profile.risk_tolerance.title()}<br>
-Experience: {profile.experience.title()}<br>
-Mode: {profile.mode_label}
-</div>""", unsafe_allow_html=True)
-
-        st.markdown("---")
-
-        if st.button("RESET PROFILE", use_container_width=True):
-            UserProfile.delete()
-            if "profile" in st.session_state:
-                del st.session_state["profile"]
-            st.rerun()
-
-
 def app():
     """Entry point — shows onboarding or main dashboard."""
     profile = get_profile()
@@ -1767,7 +1779,6 @@ def app():
     if profile is None:
         show_onboarding()
     else:
-        show_profile_sidebar(profile)
         main()
 
 
