@@ -1351,19 +1351,15 @@ def main():
     # ─── SCREENER TAB ───
     with tab2:
         if not screened:
-            st.markdown("""
-            <div class="empty-state">
-                <div class="empty-state-text">NO DATA</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div class="empty-state">
+<div class="empty-state-text">NO DATA</div>
+</div>""", unsafe_allow_html=True)
         else:
-            st.markdown("""
-            <div class="screener-legend">
-                <span class="neg">Red RSI</span> = overbought (may pull back) &nbsp;&middot;&nbsp;
-                <span class="pos">Green RSI</span> = oversold (may bounce) &nbsp;&middot;&nbsp;
-                Regime = how volatile the stock is acting compared to normal
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div class="screener-legend">
+<span class="neg">Red RSI</span> = overbought (may pull back) &nbsp;&middot;&nbsp;
+<span class="pos">Green RSI</span> = oversold (may bounce) &nbsp;&middot;&nbsp;
+Regime = how volatile the stock is acting compared to normal
+</div>""", unsafe_allow_html=True)
 
             table_rows = ""
             for s in screened:
@@ -1386,24 +1382,22 @@ def main():
                     <td style="text-transform: uppercase; font-size: 11px; letter-spacing: 1px;">{regime_str}</td>
                 </tr>'''
 
-            st.markdown(f"""
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Price</th>
-                        <th>Change</th>
-                        <th title="Momentum score (0-100). Above 70 = overbought, below 30 = oversold">RSI</th>
-                        <th title="How volatile vs last 100 days. Higher = more movement">ATR Percentile</th>
-                        <th title="How much the price swings per year, as a percent">Historical Vol</th>
-                        <th title="Volatility level: LOW / NORMAL / HIGH / EXTREME">Regime</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_rows}
-                </tbody>
-            </table>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<table class="data-table">
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Price</th>
+<th>Change</th>
+<th title="Momentum score (0-100). Above 70 = overbought, below 30 = oversold">RSI</th>
+<th title="How volatile vs last 100 days. Higher = more movement">ATR Percentile</th>
+<th title="How much the price swings per year, as a percent">Historical Vol</th>
+<th title="Volatility level: LOW / NORMAL / HIGH / EXTREME">Regime</th>
+</tr>
+</thead>
+<tbody>
+{table_rows}
+</tbody>
+</table>""", unsafe_allow_html=True)
 
     # ─── TRACKER TAB ───
     with tab3:
@@ -1430,47 +1424,43 @@ def main():
 
         win_color = "var(--positive)" if stats['win_rate'] >= 50 else "var(--negative)"
 
-        st.markdown(f"""
-        <div class="headline headline-sm" style="margin-bottom: 24px;">PREDICTION PERFORMANCE</div>
-
-        <div class="metric-grid">
-            <div class="metric-card">
-                <div class="metric-card-label">Total Predictions</div>
-                <div class="metric-card-value">{stats['total_predictions']}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Win Rate</div>
-                <div class="metric-card-value" style="color: {win_color} !important;">{stats['win_rate']:.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Wins / Losses</div>
-                <div class="metric-card-value"><span style="color: var(--positive);">{stats['wins']}</span> / <span style="color: var(--negative);">{stats['losses']}</span></div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Pending</div>
-                <div class="metric-card-value">{stats['pending']}</div>
-            </div>
-        </div>
-
-        <div class="metric-grid">
-            <div class="metric-card">
-                <div class="metric-card-label">Avg Win</div>
-                <div class="metric-card-value" style="color: var(--positive) !important;">+{stats['avg_win_pct']:.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Avg Loss</div>
-                <div class="metric-card-value" style="color: var(--negative) !important;">{stats['avg_loss_pct']:.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Profit Factor</div>
-                <div class="metric-card-value">{stats['profit_factor']:.2f}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-card-label">Last 30 Days</div>
-                <div class="metric-card-value">{stats['recent_30d']['win_rate']:.0f}%</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="headline headline-sm" style="margin-bottom: 24px;">PREDICTION PERFORMANCE</div>
+<div class="metric-grid">
+<div class="metric-card">
+<div class="metric-card-label">Total Predictions</div>
+<div class="metric-card-value">{stats['total_predictions']}</div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Win Rate</div>
+<div class="metric-card-value" style="color: {win_color} !important;">{stats['win_rate']:.1f}%</div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Wins / Losses</div>
+<div class="metric-card-value"><span style="color: var(--positive);">{stats['wins']}</span> / <span style="color: var(--negative);">{stats['losses']}</span></div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Pending</div>
+<div class="metric-card-value">{stats['pending']}</div>
+</div>
+</div>
+<div class="metric-grid">
+<div class="metric-card">
+<div class="metric-card-label">Avg Win</div>
+<div class="metric-card-value" style="color: var(--positive) !important;">+{stats['avg_win_pct']:.1f}%</div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Avg Loss</div>
+<div class="metric-card-value" style="color: var(--negative) !important;">{stats['avg_loss_pct']:.1f}%</div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Profit Factor</div>
+<div class="metric-card-value">{stats['profit_factor']:.2f}</div>
+</div>
+<div class="metric-card">
+<div class="metric-card-label">Last 30 Days</div>
+<div class="metric-card-value">{stats['recent_30d']['win_rate']:.0f}%</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
         if stats['by_signal_type']:
             st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
@@ -1488,12 +1478,10 @@ def main():
                 </tr>
                 """
 
-            st.markdown(f"""
-            <table class="data-table">
-                <thead><tr><th>Signal Type</th><th>Total</th><th>Wins</th><th>Losses</th><th>Win Rate</th></tr></thead>
-                <tbody>{type_rows}</tbody>
-            </table>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<table class="data-table">
+<thead><tr><th>Signal Type</th><th>Total</th><th>Wins</th><th>Losses</th><th>Win Rate</th></tr></thead>
+<tbody>{type_rows}</tbody>
+</table>""", unsafe_allow_html=True)
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
         st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">RECENT PREDICTIONS</div>', unsafe_allow_html=True)
@@ -1529,19 +1517,15 @@ def main():
                 </tr>
                 """
 
-            st.markdown(f"""
-            <table class="data-table">
-                <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Entry</th><th>Outcome</th><th>P/L</th><th>Status</th></tr></thead>
-                <tbody>{pred_rows}</tbody>
-            </table>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<table class="data-table">
+<thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Entry</th><th>Outcome</th><th>P/L</th><th>Status</th></tr></thead>
+<tbody>{pred_rows}</tbody>
+</table>""", unsafe_allow_html=True)
         else:
-            st.markdown("""
-            <div class="empty-state">
-                <div class="empty-state-text">NO PREDICTIONS YET</div>
-                <div class="empty-state-sub">Predictions appear as signals are generated</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div class="empty-state">
+<div class="empty-state-text">NO PREDICTIONS YET</div>
+<div class="empty-state-sub">Predictions appear as signals are generated</div>
+</div>""", unsafe_allow_html=True)
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
         st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">MANUAL RESOLUTION</div>', unsafe_allow_html=True)
@@ -1576,77 +1560,109 @@ def main():
     # ─── DOCUMENTATION TAB ───
     with tab4:
         st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">SIGNAL TYPES</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <table class="data-table">
-        <thead><tr><th>Type</th><th>What It Means</th><th>Action</th></tr></thead>
-        <tbody>
-        <tr><td style="color: var(--signal-bearish); font-weight: 600;">PUT</td>
-            <td>The stock has been rising too fast (RSI above 70, price above its normal range). Historically, these stretched conditions tend to snap back.</td>
-            <td>Buy put options to profit from a potential decline</td></tr>
-        <tr><td style="color: var(--signal-bullish); font-weight: 600;">CALL</td>
-            <td>The stock has been beaten down (RSI below 30, price below its normal range). Oversold stocks often bounce back.</td>
-            <td>Buy call options to profit from a potential recovery</td></tr>
-        <tr><td style="color: var(--signal-hedge); font-weight: 600;">HEDGE</td>
-            <td>Volatility is very high — the market is chaotic. This isn't a directional bet; it's protection.</td>
-            <td>Buy protective puts on positions you already own</td></tr>
-        <tr><td style="color: var(--signal-volatility); font-weight: 600;">VOLATILITY</td>
-            <td>The stock is swinging wildly but options are cheap. The market hasn't priced in the actual movement yet.</td>
-            <td>Buy a straddle (call + put) to profit from a big move in either direction</td></tr>
-        </tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        st.markdown("""<table class="data-table">
+<thead><tr><th>Type</th><th>What It Means</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td style="color: var(--signal-bearish); font-weight: 600;">PUT</td>
+<td>The stock has been rising too fast (RSI above 70, price above its normal range). Historically, these stretched conditions tend to snap back.</td>
+<td>Buy put options to profit from a potential decline</td></tr>
+<tr><td style="color: var(--signal-bullish); font-weight: 600;">CALL</td>
+<td>The stock has been beaten down (RSI below 30, price below its normal range). Oversold stocks often bounce back.</td>
+<td>Buy call options to profit from a potential recovery</td></tr>
+<tr><td style="color: var(--signal-hedge); font-weight: 600;">HEDGE</td>
+<td>Volatility is very high — the market is chaotic. This isn't a directional bet; it's protection.</td>
+<td>Buy protective puts on positions you already own</td></tr>
+<tr><td style="color: var(--signal-volatility); font-weight: 600;">VOLATILITY</td>
+<td>The stock is swinging wildly but options are cheap. The market hasn't priced in the actual movement yet.</td>
+<td>Buy a straddle (call + put) to profit from a big move in either direction</td></tr>
+</tbody>
+</table>""", unsafe_allow_html=True)
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">ENTRY TIMING</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <table class="data-table">
-        <thead><tr><th>Signal</th><th>Window</th><th>Why This Time</th></tr></thead>
-        <tbody>
-        <tr><td>PUT (Strong)</td><td>10:00-10:30 AM</td><td>Morning buying often exhausts here — sellers step in after the initial rush</td></tr>
-        <tr><td>PUT (Moderate)</td><td>2:30-3:00 PM</td><td>Institutional profit-taking in the afternoon creates natural selling pressure</td></tr>
-        <tr><td>CALL (Strong)</td><td>9:45-10:15 AM</td><td>Opening panic tends to exhaust quickly — rebounds start within 30 minutes</td></tr>
-        <tr><td>CALL (Moderate)</td><td>3:00-3:30 PM</td><td>Short covering and momentum buying often accelerate before market close</td></tr>
-        <tr><td>HEDGE</td><td>11:30 AM-1:00 PM</td><td>Midday is quieter — tighter bid/ask spreads mean better prices for protection</td></tr>
-        </tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        st.markdown("""<table class="data-table">
+<thead><tr><th>Signal</th><th>Window</th><th>Why This Time</th></tr></thead>
+<tbody>
+<tr><td>PUT (Strong)</td><td>10:00-10:30 AM</td><td>Morning buying often exhausts here — sellers step in after the initial rush</td></tr>
+<tr><td>PUT (Moderate)</td><td>2:30-3:00 PM</td><td>Institutional profit-taking in the afternoon creates natural selling pressure</td></tr>
+<tr><td>CALL (Strong)</td><td>9:45-10:15 AM</td><td>Opening panic tends to exhaust quickly — rebounds start within 30 minutes</td></tr>
+<tr><td>CALL (Moderate)</td><td>3:00-3:30 PM</td><td>Short covering and momentum buying often accelerate before market close</td></tr>
+<tr><td>HEDGE</td><td>11:30 AM-1:00 PM</td><td>Midday is quieter — tighter bid/ask spreads mean better prices for protection</td></tr>
+</tbody>
+</table>""", unsafe_allow_html=True)
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="headline headline-sm" style="margin-bottom: 20px;">INDICATOR DEFINITIONS</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <table class="data-table">
-        <thead><tr><th>Indicator</th><th>What It Measures</th><th>Key Levels</th></tr></thead>
-        <tbody>
-        <tr><td>RSI</td><td>Momentum — how aggressively the stock has been bought or sold over the last 14 days</td><td>Above 70 = overbought (may drop). Below 30 = oversold (may bounce)</td></tr>
-        <tr><td>ATR Percentile</td><td>How volatile the stock is compared to its own last 100 days of movement</td><td>Above 70% = elevated volatility. Above 90% = extreme</td></tr>
-        <tr><td>Historical Vol</td><td>How much the price typically swings per year, based on the last 20 days</td><td>Above 40% is considered high volatility</td></tr>
-        <tr><td>BB %B</td><td>Where the price sits within its normal range (Bollinger Bands)</td><td>Above 1.0 = above the range (bearish signal). Below 0.0 = below the range (bullish signal)</td></tr>
-        <tr><td>IV Rank</td><td>How expensive options are now compared to the last year</td><td>Above 50 = pricier than average. Below 30 = cheap (good time to buy options)</td></tr>
-        </tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        st.markdown("""<table class="data-table">
+<thead><tr><th>Indicator</th><th>What It Measures</th><th>Key Levels</th></tr></thead>
+<tbody>
+<tr><td>RSI</td><td>Momentum — how aggressively the stock has been bought or sold over the last 14 days</td><td>Above 70 = overbought (may drop). Below 30 = oversold (may bounce)</td></tr>
+<tr><td>ATR Percentile</td><td>How volatile the stock is compared to its own last 100 days of movement</td><td>Above 70% = elevated volatility. Above 90% = extreme</td></tr>
+<tr><td>Historical Vol</td><td>How much the price typically swings per year, based on the last 20 days</td><td>Above 40% is considered high volatility</td></tr>
+<tr><td>BB %B</td><td>Where the price sits within its normal range (Bollinger Bands)</td><td>Above 1.0 = above the range (bearish signal). Below 0.0 = below the range (bullish signal)</td></tr>
+<tr><td>IV Rank</td><td>How expensive options are now compared to the last year</td><td>Above 50 = pricier than average. Below 30 = cheap (good time to buy options)</td></tr>
+</tbody>
+</table>""", unsafe_allow_html=True)
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-        st.markdown("""
-        <div class="body-light" style="margin-top: 24px; font-size: 11px; color: var(--text-tertiary);">
-        This scanner provides analytical signals for informational and educational purposes only. It does not constitute financial advice.
-        Options trading involves substantial risk of loss. Past performance does not guarantee future results.
-        Conduct independent research and consider consulting a licensed financial advisor before making investment decisions.
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="body-light" style="margin-top: 24px; font-size: 11px; color: var(--text-tertiary);">
+This scanner provides analytical signals for informational and educational purposes only. It does not constitute financial advice.
+Options trading involves substantial risk of loss. Past performance does not guarantee future results.
+Conduct independent research and consider consulting a licensed financial advisor before making investment decisions.
+</div>""", unsafe_allow_html=True)
 
     # ─── PROFILE TAB ───
     with tab5:
-        st.markdown('<div class="headline headline-sm" style="margin-bottom: 4px;">YOUR PROFILE</div>', unsafe_allow_html=True)
-        st.markdown('<div class="onboarding-desc" style="margin-bottom: 24px;">Adjust anytime — changes apply to the next scan.</div>', unsafe_allow_html=True)
+        # Personalized greeting based on experience
+        exp_greeting = {
+            "beginner": "Welcome — you're in the right place. This scanner will walk you through every signal step by step.",
+            "intermediate": "Good to have you. You know the basics — we'll help you find opportunities and sharpen your edge.",
+            "experienced": "Let's get to work. Your profile tunes the scanner to match your strategy.",
+        }
+        greeting = exp_greeting.get(profile.experience, exp_greeting["beginner"])
+
+        st.markdown(f"""<div style="margin-bottom: 28px;">
+<div class="headline headline-sm" style="margin-bottom: 4px;">YOUR PROFILE</div>
+<div style="font-family: Inter, sans-serif; font-size: 14px; color: var(--text-secondary); line-height: 1.5;">{greeting}</div>
+</div>""", unsafe_allow_html=True)
+
+        # ── How Your Settings Work ──
+        max_pos = profile.max_position_dollars
+        pct_label = int(profile.max_position_pct * 100)
+
+        # Dynamic insight based on current profile combo
+        if profile.risk_tolerance == "conservative" and profile.budget <= 1000:
+            style_insight = "You're keeping it tight — small positions on high-conviction signals only. This is how most successful traders started."
+        elif profile.risk_tolerance == "aggressive" and profile.budget >= 5000:
+            style_insight = "Big budget, high risk tolerance — you'll see larger position sizes and more signal types. Make sure you're comfortable with the downside on every trade."
+        elif profile.risk_tolerance == "moderate":
+            style_insight = "Balanced approach — you'll see a mix of conservative and opportunistic plays sized to your budget."
+        elif profile.risk_tolerance == "conservative":
+            style_insight = "Playing it safe — the scanner will prioritize smaller, higher-probability setups within your budget."
+        else:
+            style_insight = "Aggressive stance — you'll see the full range of signals with larger position sizing. Keep an eye on your total exposure."
+
+        st.markdown(f"""<div style="background: white; border: 1px solid var(--border-subtle); padding: 20px 24px; margin-bottom: 24px;">
+<div class="label" style="margin-bottom: 12px;">HOW YOUR SETTINGS SHAPE THE APP</div>
+<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-secondary); line-height: 1.7;">
+<div style="margin-bottom: 8px;"><strong style="color: var(--text-primary);">Budget ${profile.budget:,}</strong> — Signal cards will show position costs relative to your budget. You won't see trades you can't afford.</div>
+<div style="margin-bottom: 8px;"><strong style="color: var(--text-primary);">{profile.risk_tolerance.title()} risk</strong> — Max {pct_label}% of budget per trade (${max_pos:,.0f}). {"Tighter limits protect you from oversized bets." if profile.risk_tolerance == "conservative" else "Balanced sizing gives room to profit without overexposing." if profile.risk_tolerance == "moderate" else "Larger positions mean bigger swings both ways."}</div>
+<div style="margin-bottom: 8px;"><strong style="color: var(--text-primary);">{profile.experience.title()} level</strong> — {"Every signal includes plain-English explanations of what's happening and why." if profile.experience == "beginner" else "Explanations are available on demand — expand for details when you need them." if profile.experience == "intermediate" else "Full technical data visible by default. Explanations available if needed."}</div>
+<div><strong style="color: var(--text-primary);">{profile.mode_label} mode</strong> — {"Browse signals and learn without any trading account. Positions are hypothetical." if not profile.is_connected else "Practice trades with simulated money. Same real data, zero financial risk." if profile.trading_mode == "paper" else "Live execution through Alpaca. Real money, real trades."}</div>
+</div>
+<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-primary); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-subtle); font-style: italic;">{style_insight}</div>
+</div>""", unsafe_allow_html=True)
+
+        # ── Settings ──
+        st.markdown('<div class="label" style="margin-bottom: 16px;">SETTINGS</div>', unsafe_allow_html=True)
 
         prof_col1, prof_col2 = st.columns(2)
 
         with prof_col1:
-            st.markdown('<div class="label" style="margin-bottom: 4px;">BUDGET</div>', unsafe_allow_html=True)
+            st.markdown('<div class="label" style="margin-bottom: 4px; font-size: 11px;">BUDGET</div>', unsafe_allow_html=True)
             new_budget = st.select_slider(
                 "Budget",
                 options=[500, 1000, 2500, 5000, 10000, 25000],
@@ -1656,7 +1672,7 @@ def main():
                 key="prof_budget",
             )
 
-            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 4px;">RISK TOLERANCE</div>', unsafe_allow_html=True)
+            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 4px; font-size: 11px;">RISK TOLERANCE</div>', unsafe_allow_html=True)
             risk_map = {"conservative": 0, "moderate": 1, "aggressive": 2}
             risk_labels = ["Conservative", "Moderate", "Aggressive"]
             risk_desc = {
@@ -1674,9 +1690,14 @@ def main():
             st.markdown(f'<div class="body-light" style="font-size: 12px; margin-top: -8px;">{risk_desc[new_risk]}</div>', unsafe_allow_html=True)
 
         with prof_col2:
-            st.markdown('<div class="label" style="margin-bottom: 4px;">EXPERIENCE LEVEL</div>', unsafe_allow_html=True)
+            st.markdown('<div class="label" style="margin-bottom: 4px; font-size: 11px;">EXPERIENCE LEVEL</div>', unsafe_allow_html=True)
             exp_map = {"beginner": 0, "intermediate": 1, "experienced": 2}
             exp_labels = ["Beginner", "Intermediate", "Experienced"]
+            exp_desc = {
+                "Beginner": "Full explanations on every signal. We'll teach as you go.",
+                "Intermediate": "Key details visible, deeper explanations on demand.",
+                "Experienced": "Data-forward view. Less hand-holding, more signal.",
+            }
             new_exp = st.radio(
                 "Experience",
                 exp_labels,
@@ -1684,8 +1705,9 @@ def main():
                 label_visibility="collapsed",
                 key="prof_exp",
             )
+            st.markdown(f'<div class="body-light" style="font-size: 12px; margin-top: -8px;">{exp_desc[new_exp]}</div>', unsafe_allow_html=True)
 
-            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 8px;">TRADING ACCOUNT</div>', unsafe_allow_html=True)
+            st.markdown('<div class="label" style="margin-top: 24px; margin-bottom: 8px; font-size: 11px;">TRADING ACCOUNT</div>', unsafe_allow_html=True)
             if profile.is_connected:
                 mode_class = profile.trading_mode
                 st.markdown(f'<div style="margin-bottom: 12px;"><span class="mode-badge {mode_class}">{profile.mode_label}</span> <span style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary);">Alpaca connected</span></div>', unsafe_allow_html=True)
@@ -1698,7 +1720,9 @@ def main():
                     key="prof_mode",
                 )
             else:
-                st.markdown('<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-tertiary); margin-bottom: 12px;">No account connected.</div>', unsafe_allow_html=True)
+                st.markdown(f"""<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+No account connected. You're in <strong>browsing mode</strong> — you can explore all signals with hypothetical sizing.
+To execute trades, connect an <a href="https://alpaca.markets" target="_blank" style="color: var(--text-primary);">Alpaca</a> account below.</div>""", unsafe_allow_html=True)
                 new_mode = "browsing"
                 connect = st.checkbox("Connect Alpaca account", key="prof_connect")
                 if connect:
@@ -1717,26 +1741,26 @@ def main():
 
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-        # Profile summary card
-        max_pos = profile.max_position_dollars
-        st.markdown(f"""<div style="background: white; border: 1px solid var(--border-subtle); padding: 24px; max-width: 480px;">
-<div class="label" style="margin-bottom: 16px;">PROFILE SUMMARY</div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        # Profile snapshot card
+        new_max_pos = new_budget * {"Conservative": 0.15, "Moderate": 0.30, "Aggressive": 0.50}[new_risk]
+        st.markdown(f"""<div style="background: white; border: 1px solid var(--border-subtle); padding: 24px;">
+<div class="label" style="margin-bottom: 16px;">AT A GLANCE</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
 <div>
 <div class="signal-data-label">BUDGET</div>
-<div class="signal-data-value">${profile.budget:,}</div>
+<div class="signal-data-value">${new_budget:,}</div>
 </div>
 <div>
 <div class="signal-data-label">MAX POSITION</div>
-<div class="signal-data-value">${max_pos:,.0f}</div>
+<div class="signal-data-value">${new_max_pos:,.0f}</div>
 </div>
 <div>
-<div class="signal-data-label">RISK LEVEL</div>
-<div class="signal-data-value" style="font-size: 16px;">{profile.risk_tolerance.title()}</div>
+<div class="signal-data-label">RISK</div>
+<div class="signal-data-value" style="font-size: 16px;">{new_risk}</div>
 </div>
 <div>
 <div class="signal-data-label">MODE</div>
-<div class="signal-data-value" style="font-size: 16px;">{profile.mode_label}</div>
+<div class="signal-data-value" style="font-size: 16px;">{profile.mode_label if new_mode == profile.trading_mode else new_mode.upper()}</div>
 </div>
 </div>
 </div>""", unsafe_allow_html=True)
@@ -1764,12 +1788,10 @@ def main():
             st.rerun()
 
     # Footer
-    st.markdown(f"""
-    <div class="footer">
-        <span class="footer-text">VOLATILITY SCANNER v4.0</span>
-        <span class="footer-text">DATA SOURCE: YAHOO FINANCE / ALPACA MARKETS</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div class="footer">
+<span class="footer-text">VOLATILITY SCANNER v4.0</span>
+<span class="footer-text">DATA SOURCE: YAHOO FINANCE / ALPACA MARKETS</span>
+</div>""", unsafe_allow_html=True)
 
 
 def app():
