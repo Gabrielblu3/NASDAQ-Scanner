@@ -1646,6 +1646,120 @@ def main():
     """, unsafe_allow_html=True)
 
 
+def show_profile_sidebar(profile):
+    """Editable profile panel in the sidebar."""
+    with st.sidebar:
+        st.markdown('<div class="headline headline-sm" style="margin-bottom: 4px;">YOUR PROFILE</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="onboarding-desc" style="margin-bottom: 20px;">Adjust anytime — changes apply to the next scan.</div>', unsafe_allow_html=True)
+
+        # Budget
+        st.markdown('<div class="label" style="margin-bottom: 4px;">BUDGET</div>', unsafe_allow_html=True)
+        new_budget = st.select_slider(
+            "Budget",
+            options=[500, 1000, 2500, 5000, 10000, 25000],
+            value=profile.budget,
+            format_func=lambda x: f"${x:,}",
+            label_visibility="collapsed",
+            key="sidebar_budget",
+        )
+
+        # Risk tolerance
+        st.markdown('<div class="label" style="margin-top: 16px; margin-bottom: 4px;">RISK TOLERANCE</div>', unsafe_allow_html=True)
+        risk_map = {"conservative": 0, "moderate": 1, "aggressive": 2}
+        risk_labels = ["Conservative", "Moderate", "Aggressive"]
+        new_risk = st.radio(
+            "Risk",
+            risk_labels,
+            index=risk_map.get(profile.risk_tolerance, 1),
+            label_visibility="collapsed",
+            key="sidebar_risk",
+        )
+
+        # Experience
+        st.markdown('<div class="label" style="margin-top: 16px; margin-bottom: 4px;">EXPERIENCE</div>', unsafe_allow_html=True)
+        exp_map = {"beginner": 0, "intermediate": 1, "experienced": 2}
+        exp_labels = ["Beginner", "Intermediate", "Experienced"]
+        new_exp = st.radio(
+            "Experience",
+            exp_labels,
+            index=exp_map.get(profile.experience, 0),
+            label_visibility="collapsed",
+            key="sidebar_exp",
+        )
+
+        st.markdown("---")
+
+        # Trading connection status
+        st.markdown('<div class="label" style="margin-bottom: 8px;">TRADING ACCOUNT</div>', unsafe_allow_html=True)
+        if profile.is_connected:
+            mode_class = profile.trading_mode
+            st.markdown(f'<div style="margin-bottom: 12px;"><span class="mode-badge {mode_class}">{profile.mode_label}</span> <span style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary);">Alpaca connected</span></div>', unsafe_allow_html=True)
+
+            new_mode = st.radio(
+                "Mode",
+                ["paper", "live"],
+                index=0 if profile.trading_mode == "paper" else 1,
+                format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
+                label_visibility="collapsed",
+                key="sidebar_mode",
+            )
+        else:
+            st.markdown('<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-tertiary); margin-bottom: 12px;">No account connected. Add Alpaca API keys to enable trading.</div>', unsafe_allow_html=True)
+            new_mode = "browsing"
+
+            connect = st.checkbox("Connect Alpaca", key="sidebar_connect")
+            if connect:
+                new_key = st.text_input("API Key", type="password", key="sidebar_key")
+                new_secret = st.text_input("Secret Key", type="password", key="sidebar_secret")
+                new_mode = st.radio(
+                    "Mode",
+                    ["paper", "live"],
+                    format_func=lambda x: "Paper Trading" if x == "paper" else "Live Trading",
+                    label_visibility="collapsed",
+                    key="sidebar_new_mode",
+                )
+                if new_key and new_secret:
+                    profile.alpaca_api_key = new_key
+                    profile.alpaca_secret_key = new_secret
+
+        st.markdown("---")
+
+        # Save changes
+        changed = (
+            new_budget != profile.budget
+            or new_risk.lower() != profile.risk_tolerance
+            or new_exp.lower() != profile.experience
+            or new_mode != profile.trading_mode
+        )
+
+        if changed:
+            profile.budget = new_budget
+            profile.risk_tolerance = new_risk.lower()
+            profile.experience = new_exp.lower()
+            profile.trading_mode = new_mode
+            profile.save()
+            st.session_state["profile"] = profile
+
+        # Profile summary
+        max_pos = profile.max_position_dollars
+        st.markdown(f"""<div style="font-family: Inter, sans-serif; font-size: 12px; color: var(--text-tertiary); line-height: 1.8;">
+<strong style="color: var(--text-secondary);">Profile Summary</strong><br>
+Budget: ${profile.budget:,}<br>
+Max position: ${max_pos:,.0f} ({profile.max_position_pct:.0%} of budget)<br>
+Risk: {profile.risk_tolerance.title()}<br>
+Experience: {profile.experience.title()}<br>
+Mode: {profile.mode_label}
+</div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        if st.button("RESET PROFILE", use_container_width=True):
+            UserProfile.delete()
+            if "profile" in st.session_state:
+                del st.session_state["profile"]
+            st.rerun()
+
+
 def app():
     """Entry point — shows onboarding or main dashboard."""
     profile = get_profile()
@@ -1653,19 +1767,7 @@ def app():
     if profile is None:
         show_onboarding()
     else:
-        # Sidebar settings
-        with st.sidebar:
-            st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">SETTINGS</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="label">Budget: ${profile.budget:,}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="label">Risk: {profile.risk_tolerance.upper()}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="label">Mode: {profile.mode_label}</div>', unsafe_allow_html=True)
-            st.markdown("---")
-            if st.button("RESET PROFILE"):
-                UserProfile.delete()
-                if "profile" in st.session_state:
-                    del st.session_state["profile"]
-                st.rerun()
-
+        show_profile_sidebar(profile)
         main()
 
 
