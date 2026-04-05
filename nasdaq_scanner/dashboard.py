@@ -23,6 +23,7 @@ from nasdaq_scanner.explanations import (
     generate_risk_note,
     generate_iv_explanation,
 )
+from nasdaq_scanner.user_profile import UserProfile
 
 # Page config
 st.set_page_config(
@@ -713,6 +714,70 @@ st.markdown("""
         color: var(--text-tertiary) !important;
         margin-bottom: 16px;
     }
+
+    /* =========================================================
+       Onboarding
+       ========================================================= */
+    .onboarding-container {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 64px 0;
+    }
+
+    .onboarding-step {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 8px;
+    }
+
+    .onboarding-question {
+        font-family: 'Bebas Neue', sans-serif !important;
+        font-size: 36px;
+        letter-spacing: 0.06em;
+        color: var(--text-primary) !important;
+        line-height: 1.1;
+        margin-bottom: 8px;
+    }
+
+    .onboarding-desc {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px;
+        font-weight: 300;
+        color: var(--text-secondary) !important;
+        line-height: 1.6;
+        margin-bottom: 32px;
+    }
+
+    /* Mode badge */
+    .mode-badge {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border: 1px solid;
+        display: inline-block;
+    }
+
+    .mode-badge.paper {
+        color: var(--signal-hedge);
+        border-color: var(--signal-hedge);
+    }
+
+    .mode-badge.live {
+        color: var(--negative);
+        border-color: var(--negative);
+    }
+
+    .mode-badge.browsing {
+        color: var(--text-tertiary);
+        border-color: var(--border);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -835,13 +900,157 @@ def run_scan(symbols, include_options=False):
 
 
 # =============================================================================
+# Onboarding Flow
+# =============================================================================
+
+def show_onboarding():
+    """Show the first-time setup flow. Returns True if profile was just created."""
+    st.markdown("""<div class="onboarding-container">
+<div class="headline headline-lg" style="margin-bottom: 8px;">VOLATILITY SCANNER</div>
+<div class="onboarding-desc" style="font-size: 16px; margin-bottom: 48px;">
+Your personal options trading tool. Let's set up your profile so everything is tailored to you.
+</div>
+</div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="onboarding-step">STEP 1 OF 4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-question">WHAT ARE YOU WORKING WITH?</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-desc">This helps us show you trades you can actually afford.</div>', unsafe_allow_html=True)
+
+    budget = st.select_slider(
+        "Budget",
+        options=[500, 1000, 2500, 5000, 10000, 25000],
+        value=1000,
+        format_func=lambda x: f"${x:,}",
+        label_visibility="collapsed",
+    )
+
+    st.markdown("---")
+
+    st.markdown('<div class="onboarding-step">STEP 2 OF 4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-question">HOW MUCH RISK CAN YOU STOMACH?</div>', unsafe_allow_html=True)
+
+    risk_options = {
+        "Conservative": "I'd rather make small, safe plays. Max 15% of budget per trade.",
+        "Moderate": "I can handle some swings for better returns. Max 30% per trade.",
+        "Aggressive": "I'm here to learn fast. Show me everything. Max 50% per trade.",
+    }
+    risk = st.radio(
+        "Risk tolerance",
+        list(risk_options.keys()),
+        index=1,
+        format_func=lambda x: f"{x} — {risk_options[x]}",
+        label_visibility="collapsed",
+    )
+
+    st.markdown("---")
+
+    st.markdown('<div class="onboarding-step">STEP 3 OF 4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-question">WHERE ARE YOU AT?</div>', unsafe_allow_html=True)
+
+    exp_options = {
+        "beginner": "New to investing — still learning the basics",
+        "intermediate": "Know stocks, learning options and technical analysis",
+        "experienced": "Experienced trader — just show me the signals",
+    }
+    experience = st.radio(
+        "Experience",
+        list(exp_options.keys()),
+        index=0,
+        format_func=lambda x: f"{exp_options[x]}",
+        label_visibility="collapsed",
+    )
+
+    st.markdown("---")
+
+    st.markdown('<div class="onboarding-step">STEP 4 OF 4</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-question">CONNECT A TRADING ACCOUNT</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-desc">Optional — connect Alpaca to execute trades directly from the app. You can skip this and add it later in settings.</div>', unsafe_allow_html=True)
+
+    connect_alpaca = st.checkbox("I want to connect my Alpaca account")
+
+    alpaca_key = ""
+    alpaca_secret = ""
+    trading_mode = "browsing"
+
+    if connect_alpaca:
+        alpaca_key = st.text_input("Alpaca API Key", type="password")
+        alpaca_secret = st.text_input("Alpaca Secret Key", type="password")
+        trading_mode = st.radio(
+            "Trading mode",
+            ["paper", "live"],
+            format_func=lambda x: {
+                "paper": "Paper Trading — Practice with simulated money, zero risk",
+                "live": "Live Trading — Real money, real trades",
+            }[x],
+            label_visibility="collapsed",
+        )
+        if trading_mode == "live":
+            st.markdown("""<div style="font-family: 'Inter', sans-serif; font-size: 13px; color: var(--negative); padding: 12px 16px; border-left: 2px solid var(--negative); margin: 8px 0;">
+<strong>Live trading uses real money.</strong> You are responsible for all trades placed through this app.
+This tool provides educational signals, not financial advice.
+</div>""", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("START SCANNING", use_container_width=True):
+            if connect_alpaca and not (alpaca_key and alpaca_secret):
+                st.error("Please enter both Alpaca API keys, or uncheck the connection box.")
+                return False
+
+            profile = UserProfile(
+                budget=budget,
+                risk_tolerance=risk.lower(),
+                experience=experience,
+                alpaca_api_key=alpaca_key,
+                alpaca_secret_key=alpaca_secret,
+                trading_mode=trading_mode if connect_alpaca else "browsing",
+            )
+            profile.save()
+            st.session_state["profile"] = profile
+            st.rerun()
+            return True
+
+    with col2:
+        if st.button("JUST BROWSING", use_container_width=True):
+            profile = UserProfile(
+                budget=budget,
+                risk_tolerance=risk.lower(),
+                experience=experience,
+                trading_mode="browsing",
+            )
+            profile.save()
+            st.session_state["profile"] = profile
+            st.rerun()
+            return True
+
+    return False
+
+
+def get_profile() -> UserProfile:
+    """Load profile from session state or disk."""
+    if "profile" in st.session_state:
+        return st.session_state["profile"]
+    profile = UserProfile.load()
+    if profile:
+        st.session_state["profile"] = profile
+    return profile
+
+
+# =============================================================================
 # Main Dashboard
 # =============================================================================
 
 def main():
+    profile = get_profile()
     now = datetime.now()
     market_open = 9 <= now.hour < 16 and now.weekday() < 5
     market_status = "MARKET OPEN" if market_open else "MARKET CLOSED"
+
+    mode_class = profile.mode_label.lower() if profile else "browsing"
+    mode_label = profile.mode_label if profile else "BROWSING"
+    budget_display = f"${profile.budget:,}" if profile else "$1,000"
 
     # Page Header
     st.markdown(f"""
@@ -852,6 +1061,7 @@ def main():
                 <div class="label" style="margin-top: 8px;">NASDAQ-100 OPTIONS SIGNAL DETECTION</div>
             </div>
             <div style="text-align: right;">
+                <div style="margin-bottom: 8px;"><span class="mode-badge {mode_class}">{mode_label}</span></div>
                 <div class="time-display">{now.strftime("%Y.%m.%d")}</div>
                 <div class="time-display"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</div>
                 <div class="market-status" style="margin-top: 8px;">
@@ -1436,5 +1646,28 @@ def main():
     """, unsafe_allow_html=True)
 
 
+def app():
+    """Entry point — shows onboarding or main dashboard."""
+    profile = get_profile()
+
+    if profile is None:
+        show_onboarding()
+    else:
+        # Sidebar settings
+        with st.sidebar:
+            st.markdown('<div class="headline headline-sm" style="margin-bottom: 16px;">SETTINGS</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="label">Budget: ${profile.budget:,}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="label">Risk: {profile.risk_tolerance.upper()}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="label">Mode: {profile.mode_label}</div>', unsafe_allow_html=True)
+            st.markdown("---")
+            if st.button("RESET PROFILE"):
+                UserProfile.delete()
+                if "profile" in st.session_state:
+                    del st.session_state["profile"]
+                st.rerun()
+
+        main()
+
+
 if __name__ == "__main__":
-    main()
+    app()
