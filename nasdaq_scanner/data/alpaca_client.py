@@ -7,6 +7,7 @@ from typing import Optional
 import pandas as pd
 from alpaca.data import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest
+from alpaca.data.enums import DataFeed
 from alpaca.data.timeframe import TimeFrame
 
 from nasdaq_scanner.config.settings import Settings, settings
@@ -70,6 +71,7 @@ class AlpacaClient:
                     start=start,
                     end=end,
                     limit=limit,
+                    feed=DataFeed.IEX,
                 )
                 bars = self.client.get_stock_bars(single_request)
 
