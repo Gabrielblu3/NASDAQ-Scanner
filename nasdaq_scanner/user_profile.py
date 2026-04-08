@@ -44,13 +44,9 @@ class UserProfile:
 
     @classmethod
     def load(cls) -> "UserProfile | None":
-        if not PROFILE_PATH.exists():
-            return None
-        try:
-            data = json.loads(PROFILE_PATH.read_text())
-            return cls(**data)
-        except (json.JSONDecodeError, TypeError):
-            return None
+        # Always return None so every visitor sees onboarding.
+        # File-based persistence would be shared across all users on the server.
+        return None
 
     @classmethod
     def delete(cls):
