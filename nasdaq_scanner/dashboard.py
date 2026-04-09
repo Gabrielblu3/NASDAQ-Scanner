@@ -77,6 +77,123 @@ st.markdown("""
         --space-lg: 24px;
         --space-xl: 32px;
         --space-2xl: 48px;
+
+        /* 2026 — accent, gradients, glows, motion */
+        --accent: #00D87A;
+        --accent-soft: #00B86A;
+        --accent-glow: 0 0 24px rgba(0,216,122,0.45), 0 0 60px rgba(0,216,122,0.18);
+        --grad-bg: radial-gradient(1200px 600px at 15% -10%, #F4FBF7 0%, rgba(250,250,250,0) 55%),
+                   radial-gradient(900px 500px at 110% 10%, #F6F4FB 0%, rgba(250,250,250,0) 60%);
+        --grad-panel: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
+        --shadow-soft: 0 1px 2px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.06);
+        --shadow-lift: 0 2px 4px rgba(20,20,30,0.06), 0 16px 48px rgba(20,20,30,0.10);
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* =========================================================
+       Keyframes
+       ========================================================= */
+    @keyframes boot-fade {
+        0% { opacity: 1; }
+        70% { opacity: 1; }
+        100% { opacity: 0; visibility: hidden; }
+    }
+    @keyframes boot-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.4); opacity: 1; }
+    }
+    @keyframes rise-in {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes sweep {
+        from { background-position: -200% 0; }
+        to { background-position: 200% 0; }
+    }
+    @keyframes breathe {
+        0%, 100% {
+            box-shadow: 0 0 24px rgba(0,216,122,0.45), 0 0 60px rgba(0,216,122,0.18),
+                        0 1px 2px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.06);
+        }
+        50% {
+            box-shadow: 0 0 32px rgba(0,216,122,0.60), 0 0 80px rgba(0,216,122,0.25),
+                        0 1px 2px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.06);
+        }
+    }
+    @keyframes live-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.55; }
+    }
+    @keyframes scan-pulse {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: -160% 50%; }
+        100% { background-position: -320% 50%; }
+    }
+    /* Gradient flow whenever Streamlit's spinner is anywhere in the app (i.e. a scan is running). */
+    .stApp:has([data-testid="stSpinner"]) .stButton > button[kind="primary"],
+    .stApp:has(.stSpinner) .stButton > button[kind="primary"] {
+        animation: scan-pulse 4.5s ease-in-out infinite !important;
+    }
+    /* Smooth click feedback — pure CSS, no JS. Pressing dips the button + intensifies glow,
+       releasing transitions back over 0.35s. */
+    .stButton > button[kind="primary"] {
+        transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), background-position 0.6s var(--ease-out) !important;
+    }
+    .stButton > button[kind="primary"]:active {
+        transform: scale(0.97) !important;
+        box-shadow: 0 0 36px rgba(0,216,122,0.70), 0 0 90px rgba(0,216,122,0.30), var(--shadow-lift) !important;
+    }
+    @keyframes post-onboard-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .stApp.post-onboard .main .block-container {
+        animation: post-onboard-in 0.7s var(--ease-out) both;
+    }
+    /* During the onboard→main transition, hide any stray onboarding container left over from the previous run. */
+    .stApp.post-onboard .onboarding-container {
+        display: none !important;
+    }
+
+    /* =========================================================
+       Boot Veil
+       ========================================================= */
+    #boot-veil {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #FAFAFA;
+        background-image: var(--grad-bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        animation: boot-fade 1.7s var(--ease-out) forwards;
+        pointer-events: none;
+    }
+    #boot-veil .wordmark {
+        font-family: 'Bebas Neue', 'Arial Narrow', sans-serif;
+        font-size: 56px;
+        letter-spacing: 0.18em;
+        background: linear-gradient(90deg, #1A1A1A 0%, #1A1A1A 35%, #00D87A 50%, #1A1A1A 65%, #1A1A1A 100%);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: sweep 2s linear infinite;
+    }
+    #boot-veil .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 16px var(--accent), 0 0 32px rgba(0,216,122,0.5);
+        animation: boot-pulse 1.2s var(--ease-out) infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        #boot-veil { animation: boot-fade 0.4s linear forwards; }
+        #boot-veil .dot, #boot-veil .wordmark { animation: none; }
     }
 
     /* =========================================================
@@ -89,12 +206,23 @@ st.markdown("""
 
     .stApp {
         background-color: var(--bg-primary) !important;
+        background-image: var(--grad-bg) !important;
+        background-attachment: fixed !important;
     }
 
     .main .block-container {
-        background-color: var(--bg-primary);
+        background-color: transparent;
         padding: 32px 48px;
         max-width: 1200px;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .page-header { animation: rise-in 0.7s var(--ease-out) both; animation-delay: 0.10s; }
+        .stTabs      { animation: rise-in 0.7s var(--ease-out) both; animation-delay: 0.30s; }
+        .metric-grid, .hero-panel, .market-strip, .signal-card {
+            animation: rise-in 0.7s var(--ease-out) both;
+            animation-delay: 0.20s;
+        }
     }
 
     /* Hide Streamlit branding */
@@ -120,6 +248,28 @@ st.markdown("""
     .stMarkdown span, .stMarkdown div {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: var(--text-primary) !important;
+    }
+
+    /* Bebas Neue must win over the .stMarkdown div blanket above */
+    .stMarkdown .headline,
+    .stMarkdown .headline-lg,
+    .stMarkdown .headline-md,
+    .stMarkdown .headline-sm,
+    .stMarkdown .onboarding-question,
+    .stMarkdown .hero-symbol,
+    .stMarkdown .signal-symbol,
+    .stMarkdown .signal-type-badge,
+    .stMarkdown .empty-state-text {
+        font-family: 'Bebas Neue', 'Arial Narrow', sans-serif !important;
+    }
+    .stMarkdown .mono,
+    .stMarkdown .metric-card-value,
+    .stMarkdown .hero-price,
+    .stMarkdown .signal-data-value,
+    .stMarkdown .market-strip-value,
+    .stMarkdown .timing-value,
+    .stMarkdown .time-display {
+        font-family: 'JetBrains Mono', 'Consolas', monospace !important;
     }
 
     .headline {
@@ -189,7 +339,9 @@ st.markdown("""
     }
 
     .status-dot.active {
-        background: var(--positive);
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent), 0 0 16px rgba(0,216,122,0.4);
+        animation: live-pulse 1.6s ease-in-out infinite;
     }
 
     .time-display {
@@ -209,9 +361,72 @@ st.markdown("""
     }
 
     .metric-card {
-        background: white;
+        background: var(--grad-panel);
         border: 1px solid var(--border-subtle);
         padding: 20px 24px;
+        border-radius: 4px;
+        box-shadow: var(--shadow-soft);
+        transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lift);
+    }
+
+    /* =========================================================
+       Polymarket Widget
+       ========================================================= */
+    .poly-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: var(--space-md);
+        margin-bottom: var(--space-xl);
+    }
+    .poly-card {
+        display: block;
+        background: var(--grad-panel);
+        border: 1px solid var(--border-subtle);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+        padding: 16px 18px;
+        box-shadow: var(--shadow-soft);
+        text-decoration: none !important;
+        color: inherit !important;
+        transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+    }
+    .poly-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lift);
+    }
+    .poly-card-q {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary) !important;
+        line-height: 1.4;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .poly-card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }
+    .poly-card-yes {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 22px;
+        font-weight: 500;
+        color: var(--accent-soft) !important;
+    }
+    .poly-card-meta {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px;
+        color: var(--text-tertiary) !important;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     .metric-card-label {
@@ -235,10 +450,12 @@ st.markdown("""
        Hero Signal Panel
        ========================================================= */
     .hero-panel {
-        background: white;
+        background: var(--grad-panel);
         border: 1px solid var(--border);
         border-left: 4px solid var(--text-primary);
         margin-bottom: var(--space-xl);
+        border-radius: 4px;
+        box-shadow: var(--shadow-soft);
     }
 
     .hero-panel.put { border-left-color: var(--signal-bearish); }
@@ -290,10 +507,17 @@ st.markdown("""
        Signal Cards
        ========================================================= */
     .signal-card {
-        background: white;
+        background: var(--grad-panel);
         border: 1px solid var(--border);
         border-left: 3px solid var(--text-primary);
         margin-bottom: var(--space-lg);
+        border-radius: 4px;
+        box-shadow: var(--shadow-soft);
+        transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+    }
+    .signal-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lift);
     }
 
     .signal-card.put { border-left-color: var(--signal-bearish); background: var(--signal-bearish-bg); }
@@ -484,9 +708,11 @@ st.markdown("""
         display: grid;
         grid-template-columns: repeat(6, 1fr);
         gap: 0;
-        background: white;
+        background: var(--grad-panel);
         border: 1px solid var(--border);
         margin-bottom: var(--space-lg);
+        border-radius: 4px;
+        box-shadow: var(--shadow-soft);
     }
 
     .market-strip-item {
@@ -603,9 +829,37 @@ st.markdown("""
         color: var(--text-secondary) !important;
     }
 
+    .stTabs [data-baseweb="tab"] {
+        position: relative !important;
+        transition: color 0.25s var(--ease-out) !important;
+    }
+    .stTabs [data-baseweb="tab"]::after {
+        content: "";
+        position: absolute;
+        left: 32px;
+        right: 32px;
+        bottom: 0;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(0,216,122,0.35) 0%, var(--accent) 50%, rgba(0,216,122,0.35) 100%);
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform 0.35s var(--ease-out);
+    }
     .stTabs [aria-selected="true"] {
         color: var(--text-primary) !important;
-        border-bottom: 2px solid var(--text-primary) !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+    }
+    .stTabs [aria-selected="true"]::after {
+        transform: scaleX(1);
+    }
+    /* Kill baseweb's built-in dark active-tab indicator */
+    .stTabs [data-baseweb="tab-highlight"],
+    .stTabs [data-baseweb="tab-border"] {
+        background: transparent !important;
+        background-color: transparent !important;
+        height: 0 !important;
+        display: none !important;
     }
 
     /* =========================================================
@@ -621,11 +875,33 @@ st.markdown("""
         letter-spacing: 0.06em !important;
         text-transform: uppercase !important;
         padding: 14px 40px !important;
-        transition: opacity 0.2s ease !important;
+        border-radius: 2px !important;
+        transition: opacity 0.2s ease, transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out) !important;
     }
 
     .stButton > button:hover {
         opacity: 0.85 !important;
+    }
+
+    /* Primary CTA — the SCAN button. Static at rest, animates only on click / during scan. */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(110deg, #00A85C 0%, #00D87A 25%, #5CFFB0 50%, #00D87A 75%, #00A85C 100%) !important;
+        background-size: 320% 100% !important;
+        background-position: 0% 50% !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.10em !important;
+        padding: 16px 56px !important;
+        border-radius: 2px !important;
+        box-shadow: var(--accent-glow), var(--shadow-soft) !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        opacity: 1 !important;
+    }
+    .stButton > button[kind="primary"] p,
+    .stButton > button[kind="primary"] span {
+        color: #FFFFFF !important;
     }
 
     /* Ensure button label text stays white on dark background */
@@ -635,10 +911,16 @@ st.markdown("""
     }
 
     .stSelectbox > div > div {
-        background: white !important;
+        background: var(--grad-panel) !important;
         border: 1px solid var(--border) !important;
         color: var(--text-primary) !important;
         font-family: 'Inter', sans-serif !important;
+        border-radius: 3px !important;
+        box-shadow: var(--shadow-soft) !important;
+        transition: border-color 0.25s var(--ease-out) !important;
+    }
+    .stSelectbox > div > div:hover {
+        border-color: var(--accent) !important;
     }
 
     /* =========================================================
@@ -647,8 +929,10 @@ st.markdown("""
     .stExpander {
         border: 1px solid var(--border-subtle) !important;
         border-left: 2px solid var(--border) !important;
-        background: white !important;
+        background: var(--grad-panel) !important;
         margin-bottom: 8px;
+        border-radius: 4px !important;
+        box-shadow: var(--shadow-soft) !important;
     }
 
     .stExpander summary {
@@ -720,8 +1004,13 @@ st.markdown("""
        ========================================================= */
     .onboarding-container {
         max-width: 560px;
-        margin: 0 auto;
-        padding: 64px 0;
+        margin: 48px auto;
+        padding: 64px 56px;
+        background: var(--grad-panel);
+        border-radius: 6px;
+        box-shadow: var(--shadow-lift);
+        animation: rise-in 0.7s var(--ease-out) both;
+        animation-delay: 0.20s;
     }
 
     .onboarding-step {
@@ -741,6 +1030,9 @@ st.markdown("""
         color: var(--text-primary) !important;
         line-height: 1.1;
         margin-bottom: 8px;
+        word-break: keep-all;
+        overflow-wrap: normal;
+        white-space: normal;
     }
 
     .onboarding-desc {
@@ -780,6 +1072,132 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
+# Top-of-page anchor used for reliable scroll-to-top.
+st.markdown('<div id="__page_top__" style="position:absolute;top:0;left:0;width:1px;height:1px;"></div>', unsafe_allow_html=True)
+
+# Boot veil — once per session
+if not st.session_state.get("_booted"):
+    st.markdown("""
+    <div id="boot-veil">
+        <div class="wordmark">VOLATILITY</div>
+        <div class="dot"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.session_state["_booted"] = True
+
+# Always disable browser scroll restoration so Streamlit reruns don't bounce the user.
+components.html("""
+<script>
+(function() {
+    try {
+        if (window.parent && window.parent.history && 'scrollRestoration' in window.parent.history) {
+            window.parent.history.scrollRestoration = 'manual';
+        }
+    } catch (e) {}
+})();
+</script>
+""", height=0)
+
+# Post-onboarding: scroll to top and play a smooth fade-in
+if st.session_state.pop("_just_onboarded", False):
+    import time as _t
+    _nonce = str(_t.time_ns())
+    components.html(f"""
+    <script>
+    /* nonce={_nonce} */
+    (function() {{
+        var win = window.parent;
+        var doc = win.document;
+        function toTop() {{
+            try {{ win.scrollTo(0, 0); }} catch (e) {{}}
+            try {{ doc.documentElement.scrollTop = 0; doc.body.scrollTop = 0; }} catch (e) {{}}
+            // Anchor at the top of the rendered page — scrollIntoView walks ancestors.
+            var anchor = doc.getElementById('__page_top__');
+            if (anchor && anchor.scrollIntoView) {{
+                try {{ anchor.scrollIntoView({{ block: 'start', inline: 'start', behavior: 'auto' }}); }} catch (e) {{}}
+            }}
+            // Brute force: reset scrollTop on every scrollable element in the parent doc.
+            var all = doc.querySelectorAll('*');
+            for (var i = 0; i < all.length; i++) {{
+                var el = all[i];
+                if (el.scrollTop && el.scrollTop > 0) {{ el.scrollTop = 0; }}
+            }}
+        }}
+        toTop();
+        var ticks = 0;
+        var iv = setInterval(function() {{
+            toTop();
+            ticks++;
+            if (ticks > 60) clearInterval(iv);
+        }}, 60);
+        var app = doc.querySelector('.stApp');
+        if (app) {{
+            app.classList.add('post-onboard');
+            setTimeout(function() {{ app.classList.remove('post-onboard'); }}, 900);
+        }}
+    }})();
+    </script>
+    """, height=0)
+
+
+# Persistent JS: drive SCAN button pulse from real DOM events (click + spinner lifecycle).
+components.html("""
+<script>
+(function() {
+    var win = window.parent;
+    var doc = win.document;
+    if (win.__scanPulseHookedV3) return;
+    if (win.__scanPulseHandler) {
+        try { doc.removeEventListener('click', win.__scanPulseHandler, true); } catch (e) {}
+    }
+    win.__scanPulseHookedV3 = true;
+
+    function findScanButton() {
+        var btns = doc.querySelectorAll('.stButton button[kind="primary"]');
+        for (var i = 0; i < btns.length; i++) {
+            var t = (btns[i].innerText || '').trim().toUpperCase();
+            if (t === 'SCAN') return btns[i];
+        }
+        return null;
+    }
+
+    function spinnerPresent() {
+        return !!(doc.querySelector('[data-testid="stSpinner"]') || doc.querySelector('.stSpinner'));
+    }
+
+    win.__scanPulseHandler = function(e) {
+        var btn = e.target.closest && e.target.closest('.stButton button[kind="primary"]');
+        if (!btn) return;
+        var label = (btn.innerText || '').trim().toUpperCase();
+        if (label !== 'SCAN') return;
+        doc.body.classList.add('scanning');
+        btn.classList.add('clicked');
+        setTimeout(function() {
+            var b = findScanButton();
+            if (b) b.classList.remove('clicked');
+        }, 650);
+        // Watch for the spinner to appear then disappear; clear the class when scan ends.
+        var sawSpinner = false;
+        var obs = new MutationObserver(function() {
+            if (spinnerPresent()) { sawSpinner = true; return; }
+            if (sawSpinner) {
+                doc.body.classList.remove('scanning');
+                obs.disconnect();
+            }
+        });
+        obs.observe(doc.body, { childList: true, subtree: true });
+        // Hard safety: drop the class after 30s no matter what.
+        setTimeout(function() {
+            doc.body.classList.remove('scanning');
+            try { obs.disconnect(); } catch (_) {}
+        }, 30000);
+    };
+    doc.addEventListener('click', win.__scanPulseHandler, true);
+})();
+</script>
+""", height=0)
 
 
 # Live clock JS
@@ -994,7 +1412,7 @@ This tool provides educational signals, not financial advice.
 
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button("START SCANNING", use_container_width=True):
+        if st.button("START SCANNING", use_container_width=True, key="onboard_start"):
             if connect_alpaca and not (alpaca_key and alpaca_secret):
                 st.error("Please enter both Alpaca API keys, or uncheck the connection box.")
                 return False
@@ -1009,11 +1427,12 @@ This tool provides educational signals, not financial advice.
             )
             profile.save()
             st.session_state["profile"] = profile
+            st.session_state["_just_onboarded"] = True
             st.rerun()
             return True
 
     with col2:
-        if st.button("JUST BROWSING", use_container_width=True):
+        if st.button("JUST BROWSING", use_container_width=True, key="onboard_browse"):
             profile = UserProfile(
                 budget=budget,
                 risk_tolerance=risk.lower(),
@@ -1022,6 +1441,7 @@ This tool provides educational signals, not financial advice.
             )
             profile.save()
             st.session_state["profile"] = profile
+            st.session_state["_just_onboarded"] = True
             st.rerun()
             return True
 
@@ -1042,36 +1462,59 @@ def get_profile() -> UserProfile:
 # Main Dashboard
 # =============================================================================
 
-def main():
-    profile = get_profile()
+@st.cache_data(ttl=300)
+def _cached_polymarkets(limit: int):
+    from nasdaq_scanner.data.polymarket_client import fetch_top_markets
+    return fetch_top_markets(limit=limit)
+
+
+def _polymarket_card_html(m) -> str:
+    yes_pct = int(round(m.yes_price * 100))
+    # Short end-date label like "APR 30"
+    end_short = ""
+    if m.end_date:
+        try:
+            from datetime import datetime as _dt
+            end_short = _dt.fromisoformat(m.end_date.replace("Z", "+00:00")).strftime("%b %d").upper()
+        except Exception:
+            end_short = ""
+    # Short volume label
+    v = m.volume or 0
+    if v >= 1_000_000:
+        vol_short = f"${v/1_000_000:.1f}M"
+    elif v >= 1_000:
+        vol_short = f"${v/1_000:.0f}K"
+    else:
+        vol_short = f"${v:.0f}"
+    meta = " · ".join(x for x in [end_short, vol_short] if x)
+    # Escape angle brackets in question to be safe
+    q = (m.question or "").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        f'<a class="poly-card" href="{m.url}" target="_blank" rel="noopener">'
+        f'<div class="poly-card-q">{q}</div>'
+        f'<div class="poly-card-row">'
+        f'<span class="poly-card-yes">{yes_pct}%</span>'
+        f'<span class="poly-card-meta">{meta}</span>'
+        f'</div>'
+        f'</a>'
+    )
+
+
+def render_polymarket_widget():
+    markets = _cached_polymarkets(limit=5)
+    if not markets:
+        return
+    st.markdown(
+        '<div class="headline headline-sm" style="margin-bottom: 12px; margin-top: 8px;">PREDICTION MARKETS</div>',
+        unsafe_allow_html=True,
+    )
+    cards = "".join(_polymarket_card_html(m) for m in markets)
+    st.markdown(f'<div class="poly-grid">{cards}</div>', unsafe_allow_html=True)
+
+
+@st.fragment
+def _scan_section(profile):
     now = datetime.now()
-    market_open = 9 <= now.hour < 16 and now.weekday() < 5
-    market_status = "MARKET OPEN" if market_open else "MARKET CLOSED"
-
-    mode_class = profile.mode_label.lower() if profile else "browsing"
-    mode_label = profile.mode_label if profile else "BROWSING"
-    budget_display = f"${profile.budget:,}" if profile else "$1,000"
-
-    # Page Header
-    st.markdown(f"""
-    <div class="page-header">
-        <div class="page-header-row">
-            <div>
-                <div class="headline headline-lg">VOLATILITY SCANNER</div>
-                <div class="label" style="margin-top: 8px;">NASDAQ-100 OPTIONS SIGNAL DETECTION</div>
-            </div>
-            <div style="text-align: right;">
-                <div style="margin-bottom: 8px;"><span class="mode-badge {mode_class}">{mode_label}</span></div>
-                <div class="time-display">{now.strftime("%Y.%m.%d")}</div>
-                <div class="time-display"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</div>
-                <div class="market-status" style="margin-top: 8px;">
-                    <span class="status-dot {'active' if market_open else ''}"></span>{market_status}
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
     # Controls
     col1, col2, col3 = st.columns([2, 2, 1])
 
@@ -1083,7 +1526,7 @@ def main():
         )
 
     with col3:
-        if st.button("SCAN"):
+        if st.button("SCAN", type="primary", use_container_width=True):
             st.cache_data.clear()
 
     # Determine symbols
@@ -1107,7 +1550,9 @@ def main():
     st.markdown(f'<div class="freshness">Last scanned: {scan_time.strftime("%I:%M %p")} ET</div>', unsafe_allow_html=True)
 
     # Tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["SIGNALS", "SCREENER", "TRACKER", "DOCUMENTATION", "PROFILE"])
+    tab1, tab2, tab3, tab_markets, tab4, tab5 = st.tabs(
+        ["SIGNALS", "SCREENER", "TRACKER", "POLYMARKET", "DOCUMENTATION", "PROFILE"]
+    )
 
     # ─── SIGNALS TAB ───
     with tab1:
@@ -1505,17 +1950,17 @@ Regime = how volatile the stock is acting compared to normal
                 outcome_display = f"${pred.outcome_price:.2f}" if pred.outcome_price else "-"
                 date_display = pred.created_at.strftime('%m/%d %H:%M') if pred.created_at else '-'
 
-                pred_rows += f"""
-                <tr>
-                    <td>{date_display}</td>
-                    <td style="font-weight: 600;">{pred.symbol}</td>
-                    <td>{pred.signal_type}</td>
-                    <td>${pred.entry_price:.2f}</td>
-                    <td>{outcome_display}</td>
-                    <td class="{profit_class}">{profit_display}</td>
-                    <td style="color: {status_color}; text-transform: uppercase;">{pred.status.value}</td>
-                </tr>
-                """
+                pred_rows += (
+                    f'<tr>'
+                    f'<td>{date_display}</td>'
+                    f'<td style="font-weight: 600;">{pred.symbol}</td>'
+                    f'<td>{pred.signal_type}</td>'
+                    f'<td>${pred.entry_price:.2f}</td>'
+                    f'<td>{outcome_display}</td>'
+                    f'<td class="{profit_class}">{profit_display}</td>'
+                    f'<td style="color: {status_color}; text-transform: uppercase;">{pred.status.value}</td>'
+                    f'</tr>'
+                )
 
             st.markdown(f"""<table class="data-table">
 <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Entry</th><th>Outcome</th><th>P/L</th><th>Status</th></tr></thead>
@@ -1556,6 +2001,25 @@ Regime = how volatile the stock is acting compared to normal
                         st.rerun()
         else:
             st.markdown('<div class="body-light">No pending predictions to resolve.</div>', unsafe_allow_html=True)
+
+    # ─── MARKETS TAB ───
+    with tab_markets:
+        st.markdown(
+            '<div class="body-light" style="margin-bottom: 16px;">'
+            'Live prediction-market questions sorted by trading volume. Click any card to view on Polymarket.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if _cached_polymarkets(limit=5):
+            render_polymarket_widget()
+        else:
+            st.markdown(
+                '<div class="empty-state">'
+                '<div class="empty-state-text">NO MARKETS AVAILABLE</div>'
+                '<div class="empty-state-sub">Polymarket is unreachable or returned no active markets</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
     # ─── DOCUMENTATION TAB ───
     with tab4:
@@ -1792,6 +2256,40 @@ To execute trades, connect an <a href="https://alpaca.markets" target="_blank" s
 <span class="footer-text">VOLATILITY SCANNER v4.0</span>
 <span class="footer-text">DATA SOURCE: YAHOO FINANCE / ALPACA MARKETS</span>
 </div>""", unsafe_allow_html=True)
+
+
+def main():
+    profile = get_profile()
+    now = datetime.now()
+    market_open = 9 <= now.hour < 16 and now.weekday() < 5
+    market_status = "MARKET OPEN" if market_open else "MARKET CLOSED"
+
+    mode_class = profile.mode_label.lower() if profile else "browsing"
+    mode_label = profile.mode_label if profile else "BROWSING"
+    budget_display = f"${profile.budget:,}" if profile else "$1,000"
+
+    # Page Header
+    st.markdown(f"""
+    <div class="page-header">
+        <div class="page-header-row">
+            <div>
+                <div class="headline headline-lg">VOLATILITY SCANNER</div>
+                <div class="label" style="margin-top: 8px;">NASDAQ-100 OPTIONS SIGNAL DETECTION</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="margin-bottom: 8px;"><span class="mode-badge {mode_class}">{mode_label}</span></div>
+                <div class="time-display">{now.strftime("%Y.%m.%d")}</div>
+                <div class="time-display"><span id="live-clock">{now.strftime("%H:%M:%S")}</span> ET</div>
+                <div class="market-status" style="margin-top: 8px;">
+                    <span class="status-dot {'active' if market_open else ''}"></span>{market_status}
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+    _scan_section(profile)
 
 
 def app():
