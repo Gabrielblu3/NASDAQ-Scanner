@@ -27,7 +27,7 @@ from nasdaq_scanner.user_profile import UserProfile
 
 # Page config
 st.set_page_config(
-    page_title="NASDAQ VOLATILITY SCANNER",
+    page_title="VOLATILITY TERMINAL",
     page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -1324,7 +1324,7 @@ def run_scan(symbols, include_options=False):
 def show_onboarding():
     """Show the first-time setup flow. Returns True if profile was just created."""
     st.markdown("""<div class="onboarding-container">
-<div class="headline headline-lg" style="margin-bottom: 8px;">VOLATILITY SCANNER</div>
+<div class="headline headline-lg" style="margin-bottom: 8px;">VOLATILITY TERMINAL</div>
 <div class="onboarding-desc" style="font-size: 16px; margin-bottom: 48px;">
 Your personal options trading tool. Let's set up your profile so everything is tailored to you.
 </div>
@@ -2253,7 +2253,7 @@ To execute trades, connect an <a href="https://alpaca.markets" target="_blank" s
 
     # Footer
     st.markdown("""<div class="footer">
-<span class="footer-text">VOLATILITY SCANNER v4.0</span>
+<span class="footer-text">VOLATILITY TERMINAL v4.0</span>
 <span class="footer-text">DATA SOURCE: YAHOO FINANCE / ALPACA MARKETS</span>
 </div>""", unsafe_allow_html=True)
 
@@ -2273,7 +2273,7 @@ def main():
     <div class="page-header">
         <div class="page-header-row">
             <div>
-                <div class="headline headline-lg">VOLATILITY SCANNER</div>
+                <div class="headline headline-lg">VOLATILITY TERMINAL</div>
                 <div class="label" style="margin-top: 8px;">NASDAQ-100 OPTIONS SIGNAL DETECTION</div>
             </div>
             <div style="text-align: right;">
