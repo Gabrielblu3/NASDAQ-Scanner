@@ -26,9 +26,11 @@ from nasdaq_scanner.explanations import (
 from nasdaq_scanner.user_profile import UserProfile
 
 # Page config
+_FAVICON_PATH = str(Path(__file__).parent / "assets" / "favicon.jpeg")
+
 st.set_page_config(
     page_title="VOLATILITY TERMINAL",
-    page_icon="",
+    page_icon=_FAVICON_PATH,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
