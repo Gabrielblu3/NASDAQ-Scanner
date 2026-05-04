@@ -40,7 +40,11 @@ class UserProfile:
 
     def save(self):
         PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        PROFILE_PATH.write_text(json.dumps(asdict(self), indent=2))
+        data = asdict(self)
+        # Never persist API keys to disk — they stay in session_state only
+        data.pop("alpaca_api_key", None)
+        data.pop("alpaca_secret_key", None)
+        PROFILE_PATH.write_text(json.dumps(data, indent=2))
 
     @classmethod
     def load(cls) -> "UserProfile | None":
