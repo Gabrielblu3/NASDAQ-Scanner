@@ -1,0 +1,40 @@
+{
+  "_note": "Real validated POC case (2026-07-17). Kalshi numbers sourced via Perplexity because api.kalshi.com is network-blocked from the build box. Replace with a live Kalshi fetch once running on an unblocked host. This is the payoff case: identical resolution wording, genuine cross-venue disagreement, and a sharp macro reference (CME FedWatch) that adjudicates.",
+  "venue_a": {
+    "venue": "polymarket",
+    "market_id": "fomc-july-2026-no-change",
+    "event_title": "Fed decision in July 2026: No change",
+    "outcome": "Yes",
+    "implied_prob": 0.943,
+    "resolution_criteria": "Resolves YES if the FOMC leaves the target range for the federal funds rate unchanged (upper bound unchanged) at the July 2026 meeting. 25bp brackets. Source: the official FOMC statement.",
+    "settlement_source": "official FOMC statement",
+    "close_time": "2026-07-29T18:00:00Z",
+    "volume_usd": 4200000,
+    "liquidity_usd": 380000
+  },
+  "venue_b": {
+    "venue": "kalshi",
+    "market_id": "KXFED-26JUL-NOCHANGE",
+    "event_title": "Fed funds rate: no change in July 2026",
+    "outcome": "Yes",
+    "implied_prob": 0.96,
+    "resolution_criteria": "Resolves YES if the FOMC target range upper bound is unchanged after the July 2026 meeting. 25bp brackets. Source: the FOMC statement.",
+    "settlement_source": "FOMC statement",
+    "close_time": "2026-07-29T18:00:00Z",
+    "volume_usd": 1100000,
+    "liquidity_usd": 210000
+  },
+  "sharp_reference": {
+    "type": "fed_funds_futures",
+    "raw_lines_or_prob": "CME FedWatch implied ~96% no change",
+    "source": "CME FedWatch / 30-day fed funds futures"
+  },
+  "user_position": {
+    "venue": "polymarket",
+    "outcome": "No change",
+    "side": "YES",
+    "entry_prob": 0.91,
+    "size_usd": 500,
+    "tradable_venue": "polymarket"
+  }
+}

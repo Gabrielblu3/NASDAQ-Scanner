@@ -1,0 +1,3 @@
+# Adapters + matcher use only the Python stdlib (urllib, json, re, dataclasses) — zero deps.
+# The only external dependency is the model call in signal.py:
+anthropic>=0.40.0
