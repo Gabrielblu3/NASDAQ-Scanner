@@ -376,59 +376,281 @@ st.markdown("""
     }
 
     /* =========================================================
-       Polymarket Widget
+       Polymarket — top trades of the day
        ========================================================= */
-    .poly-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: var(--space-md);
-        margin-bottom: var(--space-xl);
-    }
-    .poly-card {
+    .poly-hero {
         display: block;
         background: var(--grad-panel);
-        border: 1px solid var(--border-subtle);
-        border-left: 3px solid var(--accent);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent);
         border-radius: 4px;
-        padding: 16px 18px;
+        padding: 24px 28px;
+        margin-bottom: var(--space-lg);
         box-shadow: var(--shadow-soft);
         text-decoration: none !important;
         color: inherit !important;
         transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
     }
-    .poly-card:hover {
+    .poly-hero:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-lift);
     }
-    .poly-card-q {
+    .poly-hero-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 16px;
+    }
+    .poly-hero-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    .poly-hero-cat {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent-soft) !important;
+        margin-bottom: 6px;
+    }
+    .poly-hero-q {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--text-primary) !important;
+    }
+    .poly-hero-stat-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 6px;
+    }
+    .poly-hero-stat-value {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 26px;
+        font-weight: 500;
+        color: var(--text-primary) !important;
+    }
+    .poly-hero-sub {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 11px;
+        color: var(--text-tertiary) !important;
+        margin-top: 6px;
+    }
+    .poly-hero-sub-num {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 11px;
+    }
+    .poly-hero-read {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-subtle);
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text-secondary) !important;
+    }
+
+    .poly-badge {
+        display: inline-block;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+        white-space: nowrap;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+    .poly-badge.pos {
+        color: var(--positive) !important;
+        border-color: var(--positive);
+        background: var(--signal-bullish-bg);
+    }
+    .poly-badge.neg {
+        color: var(--negative) !important;
+        border-color: var(--negative);
+        background: var(--signal-bearish-bg);
+    }
+    .poly-badge.warn {
+        color: var(--signal-hedge) !important;
+        border-color: var(--signal-hedge);
+        background: var(--signal-hedge-bg);
+    }
+    .poly-badge.neutral {
+        color: var(--text-tertiary) !important;
+        border-color: var(--border);
+        background: var(--bg-secondary);
+    }
+
+    .poly-row-head, .poly-row {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) 56px 56px 84px 64px 76px 104px;
+        gap: 14px;
+        align-items: center;
+    }
+    .poly-row-head {
+        padding: 0 18px 8px 18px;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+    }
+    .poly-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: var(--space-xl);
+    }
+    .poly-row {
+        position: relative;
+        background: var(--grad-panel);
+        border: 1px solid var(--border-subtle);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+        padding: 14px 18px;
+        box-shadow: var(--shadow-soft);
+        text-decoration: none !important;
+        color: inherit !important;
+        transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), border-color 0.25s var(--ease-out);
+    }
+    .poly-row:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lift);
+        border-color: var(--accent);
+        z-index: 20;
+    }
+    .poly-rank {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 13px;
+        color: var(--text-tertiary) !important;
+    }
+    .poly-q {
         font-family: 'Inter', sans-serif !important;
         font-size: 13px;
         font-weight: 500;
         color: var(--text-primary) !important;
-        line-height: 1.4;
-        margin-bottom: 12px;
+        line-height: 1.35;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
-    .poly-card-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-    }
-    .poly-card-yes {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 22px;
-        font-weight: 500;
-        color: var(--accent-soft) !important;
-    }
-    .poly-card-meta {
+    .poly-cat {
+        display: block;
         font-family: 'Inter', sans-serif !important;
-        font-size: 11px;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
         color: var(--text-tertiary) !important;
+        margin-top: 3px;
+    }
+    .poly-num {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 14px;
+        color: var(--text-primary) !important;
+    }
+    .poly-yes {
+        color: var(--accent-soft) !important;
+        font-weight: 600;
+    }
+    .poly-no {
+        color: var(--text-secondary) !important;
+    }
+    .poly-pos { color: var(--positive) !important; }
+    .poly-neg { color: var(--negative) !important; }
+    .poly-meta {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+        color: var(--text-secondary) !important;
+    }
+
+    /* Hover tooltip — extra depth on each trade */
+    .poly-tooltip {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 30px;
+        right: 30px;
+        background: #FFFFFF;
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        padding: 16px 20px;
+        box-shadow: var(--shadow-lift);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out), visibility 0.2s;
+        z-index: 60;
+        pointer-events: none;
+    }
+    .poly-row:hover .poly-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .poly-tooltip-read {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--text-primary) !important;
+        padding: 10px 14px;
+        border-left: 2px solid var(--accent);
+        background: rgba(0, 216, 122, 0.06);
+        border-radius: 0 3px 3px 0;
+        margin-bottom: 14px;
+        white-space: normal;
+    }
+    .poly-tooltip-desc {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12px;
+        color: var(--text-secondary) !important;
+        line-height: 1.55;
+        margin-top: 14px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: normal;
+    }
+    .poly-tooltip-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+    }
+    .poly-tooltip-label {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary) !important;
+        margin-bottom: 4px;
+    }
+    .poly-tooltip-value {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 13px;
+        color: var(--text-primary) !important;
+    }
+    .poly-tooltip-hint {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-soft) !important;
+        margin-top: 12px;
     }
 
     .metric-card-label {
@@ -1465,53 +1687,305 @@ def get_profile() -> UserProfile:
 # =============================================================================
 
 @st.cache_data(ttl=300)
-def _cached_polymarkets(limit: int):
+def _cached_polymarkets(limit: int = 10):
     from nasdaq_scanner.data.polymarket_client import fetch_top_markets
     return fetch_top_markets(limit=limit)
 
 
-def _polymarket_card_html(m) -> str:
-    yes_pct = int(round(m.yes_price * 100))
-    # Short end-date label like "APR 30"
-    end_short = ""
-    if m.end_date:
-        try:
-            from datetime import datetime as _dt
-            end_short = _dt.fromisoformat(m.end_date.replace("Z", "+00:00")).strftime("%b %d").upper()
-        except Exception:
-            end_short = ""
-    # Short volume label
-    v = m.volume or 0
-    if v >= 1_000_000:
-        vol_short = f"${v/1_000_000:.1f}M"
-    elif v >= 1_000:
-        vol_short = f"${v/1_000:.0f}K"
-    else:
-        vol_short = f"${v:.0f}"
-    meta = " · ".join(x for x in [end_short, vol_short] if x)
-    # Escape angle brackets in question to be safe
-    q = (m.question or "").replace("<", "&lt;").replace(">", "&gt;")
+def _poly_esc(text: str) -> str:
+    # &#36; keeps literal $ out of the markdown source — st.markdown treats
+    # paired $...$ as LaTeX and mangles everything between them
     return (
-        f'<a class="poly-card" href="{m.url}" target="_blank" rel="noopener">'
-        f'<div class="poly-card-q">{q}</div>'
-        f'<div class="poly-card-row">'
-        f'<span class="poly-card-yes">{yes_pct}%</span>'
-        f'<span class="poly-card-meta">{meta}</span>'
+        (text or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("$", "&#36;")
+    )
+
+
+def _poly_usd(v) -> str:
+    v = v or 0
+    if v >= 1_000_000_000:
+        return f"&#36;{v/1_000_000_000:.1f}B"
+    if v >= 1_000_000:
+        return f"&#36;{v/1_000_000:.1f}M"
+    if v >= 1_000:
+        return f"&#36;{v/1_000:.0f}K"
+    return f"&#36;{v:.0f}"
+
+
+def _poly_date(end_date: str, fmt: str = "%b %d") -> str:
+    if not end_date:
+        return "—"
+    try:
+        return datetime.fromisoformat(end_date.replace("Z", "+00:00")).strftime(fmt).upper()
+    except Exception:
+        return "—"
+
+
+def _poly_days_left(end_date: str):
+    if not end_date:
+        return None
+    try:
+        end = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        return (end - datetime.now(end.tzinfo)).days
+    except Exception:
+        return None
+
+
+def _poly_change_html(change: float, cls: str = "poly-num") -> str:
+    pts = change * 100
+    color = "poly-pos" if pts > 0.05 else "poly-neg" if pts < -0.05 else ""
+    return f'<span class="{cls} {color}">{pts:+.1f}</span>'
+
+
+def _poly_indication(m):
+    """Heuristic trade read on a market. Returns (label, css_class, rationale).
+
+    Reads are structural — favorite-longshot bias, yield-to-resolution,
+    momentum, execution quality — not a view on the event itself.
+    """
+    yes = m.yes_price
+    days = _poly_days_left(m.end_date)
+    chg_pts = m.one_day_change * 100
+    spread = m.spread
+    thin = (spread is not None and spread >= 0.03) or (0 < m.liquidity < 10_000)
+
+    if days is None:
+        days_str = "an unknown horizon"
+    elif days < 0:
+        days_str = "an open-ended horizon (already past its listed close date)"
+    elif days == 0:
+        days_str = "under a day"
+    else:
+        days_str = f"{days} day{'s' if days != 1 else ''}"
+
+    def cents(p: float) -> str:
+        c = p * 100
+        return f"{c:.1f}¢" if c < 10 else f"{c:.0f}¢"
+
+    parts = []
+
+    if yes >= 0.90:
+        ret = (1 - yes) / yes * 100
+        label, cls = "YES YIELD", "pos"
+        parts.append(
+            f"YES trades at {cents(yes)} — buying it returns {ret:.1f}% over {days_str} if the favorite holds. "
+            f"Heavy favorites historically resolve YES slightly more often than their price implies "
+            f"(favorite-longshot bias), but a single upset costs the entire stake. "
+            f"Treat it as a yield position, not a lock, and size accordingly."
+        )
+    elif yes <= 0.10:
+        no_ret = yes / (1 - yes) * 100
+        if days is not None and 0 <= days <= 30 and no_ret >= 1.5:
+            label, cls = "NO YIELD", "pos"
+            parts.append(
+                f"YES at {cents(yes)} is a lottery ticket, and longshots are chronically overpriced — "
+                f"the value side is NO at {cents(1 - yes)}, returning {no_ret:.1f}% in {days_str} if nothing changes. "
+                f"Small edge, total loss on a surprise."
+            )
+        else:
+            label, cls = "PASS", "neutral"
+            parts.append(
+                f"YES at {cents(yes)} is a longshot — historically overpriced, so buying it is negative expected value. "
+                f"The NO side yields under 2% over {days_str}, which rarely justifies locking up capital. "
+                f"No structural edge on either side."
+            )
+    elif 0.40 <= yes <= 0.60:
+        if days is not None and 0 <= days <= 2:
+            label, cls = "EVENT RISK", "warn"
+            parts.append(
+                f"Near even odds ({yes*100:.0f}/{(1-yes)*100:.0f}) resolving in {days_str} — pure binary event risk. "
+                f"Expect maximum volatility into close; any position here is a bet on the event, not on mispricing."
+            )
+        else:
+            label, cls = "NO EDGE", "neutral"
+            parts.append(
+                "Priced as a coin flip — public information is already in the price. "
+                "Trading here without genuine private insight just pays the spread to gamble. "
+                "Skip unless you know something the market doesn't."
+            )
+    else:
+        label, cls = "FAIR ZONE", "neutral"
+        parts.append(
+            f"Mid-range pricing ({yes*100:.0f}% YES) — outside the zones where structural biases bite. "
+            f"Any edge here requires an actual view on the event; the price itself offers nothing to exploit."
+        )
+
+    if abs(chg_pts) >= 3:
+        direction = "toward YES" if chg_pts > 0 else "toward NO"
+        if label in ("NO EDGE", "FAIR ZONE"):
+            label, cls = ("MOMENTUM ▲", "pos") if chg_pts > 0 else ("MOMENTUM ▼", "neg")
+        parts.append(
+            f"Moved {chg_pts:+.1f} pts in 24h on {_poly_usd(m.volume_24h)} of volume — the market is repricing {direction}. "
+            f"News-driven moves often drift further, but entering right after a spike risks paying the extreme; "
+            f"wait for a pullback or cut size."
+        )
+
+    if thin:
+        sp = f"{spread*100:.1f}¢" if spread is not None else "wide"
+        parts.append(
+            f"Caution: execution quality is poor (spread {sp}, liquidity {_poly_usd(m.liquidity)}) — "
+            f"market orders will leak the edge as slippage. Use limit orders or pass."
+        )
+        if cls == "pos":
+            cls = "warn"
+
+    return label, cls, " ".join(parts)
+
+
+def _poly_tooltip_html(m, ind) -> str:
+    desc = _poly_esc(m.description).strip() or "No description provided for this market."
+    bid = f"{m.best_bid*100:.1f}¢" if m.best_bid is not None else "—"
+    ask = f"{m.best_ask*100:.1f}¢" if m.best_ask is not None else "—"
+    spread = f"{m.spread*100:.1f}¢" if m.spread is not None else "—"
+    last = f"{m.last_trade*100:.1f}¢" if m.last_trade is not None else "—"
+    closes_full = _poly_date(m.end_date, "%b %d, %Y")
+    days = _poly_days_left(m.end_date)
+    closes = f"{closes_full}" + (f" ({days}D)" if days is not None and days >= 0 else "")
+    stats = [
+        ("Total Volume", _poly_usd(m.volume)),
+        ("Liquidity", _poly_usd(m.liquidity)),
+        ("Best Bid", bid),
+        ("Best Ask", ask),
+        ("Spread", spread),
+        ("Last Trade", last),
+    ]
+    stat_html = "".join(
+        f'<div><div class="poly-tooltip-label">{label}</div>'
+        f'<div class="poly-tooltip-value">{value}</div></div>'
+        for label, value in stats
+    )
+    label, cls, rationale = ind
+    return (
+        f'<div class="poly-tooltip">'
+        f'<div class="poly-tooltip-read"><span class="poly-badge {cls}">{label}</span>{rationale}</div>'
+        f'<div class="poly-tooltip-grid">{stat_html}</div>'
+        f'<div class="poly-tooltip-desc">{desc}</div>'
+        f'<div class="poly-tooltip-hint">Closes {closes} &nbsp;·&nbsp; Click to view on Polymarket ↗</div>'
         f'</div>'
+    )
+
+
+def _poly_row_html(m, rank: int) -> str:
+    q = _poly_esc(m.question)
+    cat = _poly_esc(m.category)
+    cat_html = f'<span class="poly-cat">{cat}</span>' if cat else ""
+    ind = _poly_indication(m)
+    return (
+        f'<a class="poly-row" href="{m.url}" target="_blank" rel="noopener">'
+        f'<span class="poly-rank">{rank:02d}</span>'
+        f'<span><span class="poly-q">{q}</span>{cat_html}</span>'
+        f'<span class="poly-num poly-yes">{m.yes_price*100:.0f}%</span>'
+        f'<span class="poly-num poly-no">{m.no_price*100:.0f}%</span>'
+        f'<span class="poly-num">{_poly_usd(m.volume_24h)}</span>'
+        f'{_poly_change_html(m.one_day_change)}'
+        f'<span class="poly-meta">{_poly_date(m.end_date)}</span>'
+        f'<span><span class="poly-badge {ind[1]}">{ind[0]}</span></span>'
+        f'{_poly_tooltip_html(m, ind)}'
         f'</a>'
     )
 
 
-def render_polymarket_widget():
-    markets = _cached_polymarkets(limit=5)
+def render_polymarket_tab():
+    markets = _cached_polymarkets(limit=10)
     if not markets:
+        st.markdown(
+            '<div class="empty-state">'
+            '<div class="empty-state-text">NO MARKETS AVAILABLE</div>'
+            '<div class="empty-state-sub">Polymarket is unreachable or returned no active markets</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         return
+
+    total_24h = sum(m.volume_24h for m in markets)
+    total_liq = sum(m.liquidity for m in markets)
+    mover = max(markets, key=lambda m: abs(m.one_day_change))
+    closing_week = len([
+        m for m in markets
+        if (d := _poly_days_left(m.end_date)) is not None and 0 <= d <= 7
+    ])
+
+    st.markdown(f"""
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-card-label">Top Markets Tracked</div>
+            <div class="metric-card-value">{len(markets)}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">24H Volume (Top 10)</div>
+            <div class="metric-card-value">{_poly_usd(total_24h)}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Combined Liquidity</div>
+            <div class="metric-card-value">{_poly_usd(total_liq)}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Closing Within 7 Days</div>
+            <div class="metric-card-value">{closing_week}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Hero — the single most-traded market of the day
+    top = markets[0]
+    top_cat = _poly_esc(top.category)
+    top_cat_html = f'<div class="poly-hero-cat">{top_cat}</div>' if top_cat else ""
+    top_label, top_cls, top_read = _poly_indication(top)
+    st.markdown(f"""
+    <a class="poly-hero" href="{top.url}" target="_blank" rel="noopener">
+        <div class="poly-hero-label">MOST TRADED TODAY</div>
+        <div class="poly-hero-grid">
+            <div>
+                {top_cat_html}
+                <div class="poly-hero-q">{_poly_esc(top.question)}</div>
+            </div>
+            <div>
+                <div class="poly-hero-stat-label">Yes / No</div>
+                <div class="poly-hero-stat-value"><span class="poly-yes">{top.yes_price*100:.0f}%</span> <span style="color: var(--text-tertiary); font-size: 18px;">/ {top.no_price*100:.0f}%</span></div>
+                <div class="poly-hero-sub">{_poly_change_html(top.one_day_change, "poly-hero-sub-num")} pts 24h</div>
+            </div>
+            <div>
+                <div class="poly-hero-stat-label">24H Volume</div>
+                <div class="poly-hero-stat-value">{_poly_usd(top.volume_24h)}</div>
+                <div class="poly-hero-sub">{_poly_usd(top.volume)} lifetime</div>
+            </div>
+            <div>
+                <div class="poly-hero-stat-label">Closes</div>
+                <div class="poly-hero-stat-value" style="font-size: 20px;">{_poly_date(top.end_date)}</div>
+                <div class="poly-hero-sub">{_poly_usd(top.liquidity)} liquidity</div>
+            </div>
+        </div>
+        <div class="poly-hero-read"><span class="poly-badge {top_cls}">{top_label}</span>{top_read}</div>
+    </a>
+    """, unsafe_allow_html=True)
+
+    biggest_move = f"{mover.one_day_change*100:+.1f} pts — {_poly_esc(mover.question)}"
     st.markdown(
-        '<div class="headline headline-sm" style="margin-bottom: 12px; margin-top: 8px;">PREDICTION MARKETS</div>',
+        f'<div class="market-summary">Top 10 Polymarket trades of the day, ranked by 24-hour volume. '
+        f'Biggest 24h move: {biggest_move}. '
+        f'Hover any market for depth, spread, and context. Click to open on Polymarket.</div>',
         unsafe_allow_html=True,
     )
-    cards = "".join(_polymarket_card_html(m) for m in markets)
-    st.markdown(f'<div class="poly-grid">{cards}</div>', unsafe_allow_html=True)
+
+    head = (
+        '<div class="poly-row-head">'
+        '<span>#</span><span>Market</span><span>Yes</span><span>No</span>'
+        '<span>24H Vol</span><span>24H Δ</span><span>Closes</span><span>Signal</span>'
+        '</div>'
+    )
+    rows = "".join(_poly_row_html(m, i + 1) for i, m in enumerate(markets))
+    st.markdown(f'{head}<div class="poly-rows">{rows}</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="body-light" style="font-size: 11px; color: var(--text-tertiary); margin-top: -8px;">'
+        'Signals are heuristic reads on market structure — favorite-longshot bias, yield to resolution, '
+        'momentum, and execution quality — not a view on the events themselves. Educational only, not '
+        'financial advice. Any prediction-market position can go to zero.</div>',
+        unsafe_allow_html=True,
+    )
 
 
 @st.fragment
@@ -1551,12 +2025,12 @@ def _scan_section(profile):
     # Data freshness
     st.markdown(f'<div class="freshness">Last scanned: {scan_time.strftime("%I:%M %p")} ET</div>', unsafe_allow_html=True)
 
-    # Tabs
-    tab1, tab2, tab3, tab_markets, tab4, tab5 = st.tabs(
-        ["SIGNALS", "SCREENER", "TRACKER", "POLYMARKET", "DOCUMENTATION", "PROFILE"]
+    # Tabs — Polymarket is the landing tab; the NASDAQ signals moved later
+    tab_markets, tab2, tab3, tab1, tab4, tab5 = st.tabs(
+        ["POLYMARKET", "SCREENER", "TRACKER", "NASDAQ", "DOCUMENTATION", "PROFILE"]
     )
 
-    # ─── SIGNALS TAB ───
+    # ─── NASDAQ TAB (signals) ───
     with tab1:
 
         # Metrics
@@ -2004,24 +2478,9 @@ Regime = how volatile the stock is acting compared to normal
         else:
             st.markdown('<div class="body-light">No pending predictions to resolve.</div>', unsafe_allow_html=True)
 
-    # ─── MARKETS TAB ───
+    # ─── POLYMARKET TAB (landing) ───
     with tab_markets:
-        st.markdown(
-            '<div class="body-light" style="margin-bottom: 16px;">'
-            'Live prediction-market questions sorted by trading volume. Click any card to view on Polymarket.'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        if _cached_polymarkets(limit=5):
-            render_polymarket_widget()
-        else:
-            st.markdown(
-                '<div class="empty-state">'
-                '<div class="empty-state-text">NO MARKETS AVAILABLE</div>'
-                '<div class="empty-state-sub">Polymarket is unreachable or returned no active markets</div>'
-                '</div>',
-                unsafe_allow_html=True,
-            )
+        render_polymarket_tab()
 
     # ─── DOCUMENTATION TAB ───
     with tab4:
