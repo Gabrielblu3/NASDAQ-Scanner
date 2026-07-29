@@ -1,12 +1,12 @@
 """Kalshi adapter — trade-api v2 (public market data, no auth for reads).
 
-HOST CAVEAT (validated 2026-07-17): the production host `api.kalshi.com` is
-network-unreachable from this build environment (HTTP 000, sandbox-independent).
-The `api.elections.kalshi.com` host IS reachable and now serves general markets
-(sports, etc.). Default below is the reachable host so the skeleton runs; Gabriel
-should switch KALSHI_BASE to the production host on a box where it resolves, and
-confirm which host carries the specific series he needs (Fed/macro series were NOT
-on the elections host as of the POC).
+HOST RESOLUTION (validated 2026-07-18): `api.kalshi.com` does not exist in DNS —
+it was never a network block. The legacy `trading-api.kalshi.com` responds with
+"API has been moved to https://api.elections.kalshi.com/". The elections host IS
+production; there is no other host to flip to. Fed/macro series (KXFED,
+KXFEDDECISION) live there with live two-sided `_dollars` books — the earlier
+"only illiquid combos" read came from fetching the first N markets unfiltered.
+Use `series_ticker` / `event_ticker` to target the series worth cross-matching.
 
 Two price schemas exist across hosts and this adapter handles BOTH:
   - production `api.kalshi.com`: `yes_bid`/`yes_ask`/`last_price` in integer CENTS (0-100).
@@ -23,7 +23,7 @@ from urllib.parse import urlencode
 
 from models import NormalizedMarket
 
-# Switch to "https://api.kalshi.com" on a box where it resolves (see caveat above).
+# Production host (see HOST RESOLUTION above — this is the only live host).
 KALSHI_BASE = "https://api.elections.kalshi.com"
 
 
