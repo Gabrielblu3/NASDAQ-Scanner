@@ -44,13 +44,22 @@ def _extract_source(description: str) -> str:
     return m.group(0).strip() if m else ""
 
 
-def fetch_markets(limit: int = 100) -> List[NormalizedMarket]:
-    """Fetch active, open, binary markets ordered by volume (most liquid first)."""
-    rows = _get(
-        "/markets",
-        {"limit": limit, "active": "true", "closed": "false",
-         "order": "volume", "ascending": "false"},
-    )
+def fetch_markets(
+    limit: int = 100,
+    order: str = "volume",
+    slug: str | None = None,
+) -> List[NormalizedMarket]:
+    """Fetch active, open, binary markets, most liquid first.
+
+    Gamma caps the page size (~100 rows) regardless of `limit`, so a high-volume-only
+    fetch misses mid-tail markets — use `order="volume24hr"` for what's trading TODAY,
+    or `slug=` to pull one known market directly.
+    """
+    params = {"limit": limit, "active": "true", "closed": "false",
+              "order": order, "ascending": "false"}
+    if slug:
+        params = {"slug": slug}
+    rows = _get("/markets", params)
     if isinstance(rows, dict):          # some responses wrap in an object
         rows = rows.get("data", [])
 
