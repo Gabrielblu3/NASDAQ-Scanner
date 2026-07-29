@@ -60,9 +60,22 @@ def _implied_prob(m: dict) -> Optional[float]:
     return None
 
 
-def fetch_markets(limit: int = 200) -> List[NormalizedMarket]:
-    """Fetch open markets. Skeleton keeps only priced markets (dropped illiquid combos)."""
-    data = _get("/trade-api/v2/markets", {"limit": limit, "status": "open"})
+def fetch_markets(
+    limit: int = 200,
+    series_ticker: Optional[str] = None,
+    event_ticker: Optional[str] = None,
+) -> List[NormalizedMarket]:
+    """Fetch open markets, optionally scoped to a series/event (e.g. KXFEDDECISION).
+
+    Unscoped fetches return whatever the API pages first (mostly illiquid combos) —
+    always scope to target series for cross-matching. Keeps only priced markets.
+    """
+    params = {"limit": limit, "status": "open"}
+    if series_ticker:
+        params["series_ticker"] = series_ticker
+    if event_ticker:
+        params["event_ticker"] = event_ticker
+    data = _get("/trade-api/v2/markets", params)
     out: List[NormalizedMarket] = []
     for m in data.get("markets", []):
         prob = _implied_prob(m)
