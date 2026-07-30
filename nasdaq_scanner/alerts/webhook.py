@@ -1,6 +1,5 @@
 """Discord and Slack webhook notifications."""
 
-import json
 import logging
 from datetime import datetime
 from typing import Optional

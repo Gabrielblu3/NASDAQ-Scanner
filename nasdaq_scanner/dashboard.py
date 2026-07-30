@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from nasdaq_scanner.config.settings import Settings, NASDAQ_100
 from nasdaq_scanner.scanner.stock_screener import StockScreener
-from nasdaq_scanner.scanner.signal_generator import SignalGenerator, SignalType, SignalStrength
+from nasdaq_scanner.scanner.signal_generator import SignalGenerator, SignalType
 from nasdaq_scanner.tracker.prediction_tracker import PredictionTracker, PredictionStatus
 from nasdaq_scanner.explanations import (
     generate_signal_summary,
@@ -1451,7 +1451,6 @@ components.html("""
 
 def get_optimal_entry_time(signal):
     """Calculate optimal entry time based on signal type and market conditions."""
-    from datetime import timedelta
     now = datetime.now()
 
     if signal.signal_type == SignalType.PUT_OPPORTUNITY:
@@ -1990,7 +1989,6 @@ def render_polymarket_tab():
 
 @st.fragment
 def _scan_section(profile):
-    now = datetime.now()
     # Controls
     col1, col2, col3 = st.columns([2, 2, 1])
 
@@ -2645,7 +2643,7 @@ Conduct independent research and consider consulting a licensed financial adviso
                     key="prof_mode",
                 )
             else:
-                st.markdown(f"""<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                st.markdown("""<div style="font-family: Inter, sans-serif; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
 No account connected. You're in <strong>browsing mode</strong> — you can explore all signals with hypothetical sizing.
 To execute trades, connect an <a href="https://alpaca.markets" target="_blank" style="color: var(--text-primary);">Alpaca</a> account below.</div>""", unsafe_allow_html=True)
                 new_mode = "browsing"
@@ -2727,7 +2725,6 @@ def main():
 
     mode_class = profile.mode_label.lower() if profile else "browsing"
     mode_label = profile.mode_label if profile else "BROWSING"
-    budget_display = f"${profile.budget:,}" if profile else "$1,000"
 
     # Page Header
     st.markdown(f"""

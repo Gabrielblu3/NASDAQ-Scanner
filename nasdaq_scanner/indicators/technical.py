@@ -1,6 +1,5 @@
 """Technical indicators: ATR, Bollinger Bands, RSI."""
 
-import numpy as np
 import pandas as pd
 import ta
 

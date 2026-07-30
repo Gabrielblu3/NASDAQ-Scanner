@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-import numpy as np
 from scipy.stats import norm
 
 

@@ -1,7 +1,6 @@
 """Market data fetching and processing."""
 
 import logging
-from datetime import datetime
 from typing import Optional
 
 import pandas as pd

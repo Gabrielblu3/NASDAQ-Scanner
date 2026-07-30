@@ -1,6 +1,5 @@
 """Tests for the SignalGenerator with mock data."""
 
-from unittest.mock import patch
 
 import pytest
 
@@ -9,7 +8,6 @@ from nasdaq_scanner.scanner.signal_generator import (
     SignalGenerator,
     SignalStrength,
     SignalType,
-    TradingSignal,
 )
 from nasdaq_scanner.scanner.stock_screener import ScreenedStock
 

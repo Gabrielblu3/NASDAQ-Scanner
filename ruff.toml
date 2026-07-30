@@ -1,0 +1,25 @@
+# Pinned lint contract for CI.
+#
+# Without an explicit `select`, ruff lints against whatever its current release
+# ships as defaults — so a new ruff version can turn main red with no code change.
+# That is exactly what happened on a4c3c9c (182 -> 189 findings, all stylistic).
+# Select the correctness rules we actually want enforced and let the version in
+# ci.yml stay pinned alongside this file.
+#
+#   E4/E7/E9 - import, statement and syntax errors
+#   F        - pyflakes: undefined names, unused imports/locals, bad f-strings
+#
+# Stylistic modernization (UP, I, C4) is deliberately NOT enforced: the codebase
+# predates it and a mass rewrite would bury real history in churn.
+
+target-version = "py311"
+
+exclude = [
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]

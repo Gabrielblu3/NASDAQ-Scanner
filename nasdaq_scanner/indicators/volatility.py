@@ -137,7 +137,6 @@ class VolatilityIndicators:
             return "unknown"
 
         hv_20 = VolatilityIndicators.calculate_historical_volatility(df, 20)
-        hv_60 = VolatilityIndicators.calculate_historical_volatility(df, 60)
 
         # Annualized volatility thresholds
         if hv_20 < 0.15:

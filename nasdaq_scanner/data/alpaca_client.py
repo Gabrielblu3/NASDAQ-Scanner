@@ -52,14 +52,6 @@ class AlpacaClient:
         if end is None:
             end = datetime.now()
 
-        request = StockBarsRequest(
-            symbol_or_symbols=symbols,
-            timeframe=timeframe,
-            start=start,
-            end=end,
-            limit=limit,
-        )
-
         result = {}
 
         # Fetch symbols individually to avoid API limitations

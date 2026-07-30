@@ -1,6 +1,5 @@
 """Tests for configuration settings."""
 
-import pytest
 
 from nasdaq_scanner.config.settings import NASDAQ_100, Settings
 

@@ -1,12 +1,10 @@
 """Tests for the UserProfile model."""
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
-from nasdaq_scanner.user_profile import PROFILE_PATH, UserProfile
+from nasdaq_scanner.user_profile import UserProfile
 
 
 class TestUserProfileDefaults:
