@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import polymarket
@@ -26,13 +27,34 @@ from signal import run_signal
 EXAMPLES = Path(__file__).parent / "examples"
 
 
+# Kalshi series worth cross-matching. An unscoped /markets page returns whatever the
+# API happens to serve first — tennis, sports combos, crypto strikes — and yields zero
+# Fed candidates, which is what made the live path look empty. KXFEDDECISION carries the
+# per-meeting hike/cut/hold legs; KXFED carries the upper-bound-above-X strips, which
+# trade year-round rather than only around a decision date.
+KALSHI_SERIES = ("KXFEDDECISION", "KXFED")
+
+
 def _fetch_both():
-    pm = polymarket.fetch_markets(limit=100)
-    kl = kalshi.fetch_markets(limit=1000)
-    print(f"fetched: polymarket={len(pm)}  kalshi={len(kl)} (host {kalshi.KALSHI_BASE})")
+    """Fetch both venues concurrently, scoped to the series we actually cross-match.
+
+    Nearly all wall-clock here is network wait, so the requests are issued in parallel:
+    sequentially this is the sum of every round-trip, concurrently it is the slowest one.
+    """
+    with ThreadPoolExecutor(max_workers=1 + len(KALSHI_SERIES)) as pool:
+        # volume24hr, not lifetime volume — lifetime ordering returns permanently-large
+        # markets that have already resolved to ~1%/99%, where nothing can disagree.
+        f_pm = pool.submit(polymarket.fetch_markets, limit=100, order="volume24hr")
+        f_kl = [pool.submit(kalshi.fetch_markets, limit=200, series_ticker=s)
+                for s in KALSHI_SERIES]
+        pm = f_pm.result()
+        kl = [m for f in f_kl for m in f.result()]
+
+    print(f"fetched: polymarket={len(pm)}  kalshi={len(kl)} "
+          f"({'+'.join(KALSHI_SERIES)} @ {kalshi.KALSHI_BASE})")
     if not kl:
-        print("  note: 0 priced Kalshi markets from this host — point KALSHI_BASE at "
-              "production on an unblocked box for live cross-matching. Try --demo meanwhile.")
+        print("  note: 0 priced Kalshi markets for these series — check the series "
+              "tickers are still current. --demo runs the full loop offline meanwhile.")
     return pm, kl
 
 
