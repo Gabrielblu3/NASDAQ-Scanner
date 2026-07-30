@@ -6,8 +6,9 @@ Modes:
   python run.py --demo     run the full Step 1-5 signal on the bundled FOMC example
   python run.py --signal N run the signal on live candidate #N from the matched list
 
-Note: live Kalshi requires a host where api.kalshi.com resolves (see kalshi.py caveat).
-From a blocked box, --demo exercises the full loop on real validated numbers.
+Note: live Kalshi reads work against api.elections.kalshi.com, which is production
+(see HOST RESOLUTION in kalshi.py) — scope fetches to a series such as KXFEDDECISION.
+--demo exercises the full loop on real validated numbers without touching the network.
 """
 
 from __future__ import annotations
