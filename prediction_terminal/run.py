@@ -20,7 +20,8 @@ from pathlib import Path
 
 import polymarket
 import kalshi
-from matcher import match
+import identity
+from matcher import _similarity
 from models import NormalizedMarket, MatchCandidate
 from signal import run_signal
 
@@ -58,15 +59,43 @@ def _fetch_both():
     return pm, kl
 
 
-def cmd_live(args):
+def cmd_live(args, show_rejected: bool = False):
+    """Fetch, match, then GATE. Only gate-passing pairs are offered as candidates.
+
+    The matcher is a recall filter and cannot tell a disagreement from a complement, so
+    everything it returns is a suspect until identity.check clears it. Indices printed
+    here are indices into the SURVIVING list — `--signal N` can never address a pair the
+    gate rejected.
+    """
     pm, kl = _fetch_both()
-    candidates = match(pm, kl)
-    print(f"\ncandidate cross-venue pairs (sim >= 0.30): {len(candidates)}\n")
-    for i, c in enumerate(candidates[:15]):
-        gap = "n/a" if c.gap_pp is None else f"{c.gap_pp:>5.1f}pp"
-        print(f"[{i}] sim={c.title_similarity:.2f} gap={gap}")
+    same, subtle = identity.pair_markets(pm, kl)
+
+    candidates = [
+        MatchCandidate(a=a, b=b, title_similarity=_similarity(a.event_title, b.event_title),
+                       gap_pp=(None if a.implied_prob is None or b.implied_prob is None
+                               else abs(a.implied_prob - b.implied_prob) * 100.0))
+        for a, b, _ in same
+    ]
+    candidates.sort(key=lambda c: (c.gap_pp is None, -(c.gap_pp or 0)))
+
+    print(f"\n{len(same)} same-question pairs, {len(subtle)} flagged subtly-different\n")
+    for i, c in enumerate(candidates):
+        gap = "n/a" if c.gap_pp is None else f"{c.gap_pp:>5.2f}pp"
+        print(f"[{i}] gap={gap}  (title sim {c.title_similarity:.2f})")
         print(f"     PM: {c.a.event_title[:70]}  ({c.a.implied_prob})")
         print(f"     KL: {c.b.event_title[:70]}  ({c.b.implied_prob})")
+
+    if subtle:
+        # Shown but never offered as candidates: these are the pairs that look tradeable
+        # and settle differently in part of the range — the expensive kind of near-miss.
+        print(f"\n  subtly different — NOT tradeable as the same question ({len(subtle)}):")
+        for a, b, v in (subtle if show_rejected else subtle[:5]):
+            print(f"    {a.event_title[:52]}")
+            print(f"      vs {b.event_title[:52]}")
+            print(f"      {v.reason[:104]}")
+        if not show_rejected and len(subtle) > 5:
+            print(f"    ... {len(subtle) - 5} more (--show-rejected)")
+
     if candidates and args is not None:
         print("\nrun `python run.py --signal 0` to send the top candidate through the master prompt.")
     return candidates
@@ -106,6 +135,8 @@ def main():
     p = argparse.ArgumentParser(description="Cross-venue prediction-market signal companion")
     p.add_argument("--demo", action="store_true", help="run signal on bundled FOMC example")
     p.add_argument("--signal", type=int, metavar="N", help="run signal on live candidate #N")
+    p.add_argument("--show-rejected", action="store_true",
+                   help="print every gate-rejected pair (for auditing what the gate ate)")
     args = p.parse_args()
 
     if args.demo:
@@ -113,7 +144,7 @@ def main():
     elif args.signal is not None:
         cmd_signal(args.signal)
     else:
-        cmd_live(args)
+        cmd_live(args, show_rejected=args.show_rejected)
 
 
 if __name__ == "__main__":
