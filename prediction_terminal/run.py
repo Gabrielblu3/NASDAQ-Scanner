@@ -15,17 +15,25 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import polymarket
 import kalshi
+import sportsbook
+import devig
+import keynumbers
 import identity
-from matcher import _similarity
 from models import NormalizedMarket, MatchCandidate
 from signal import run_signal
 
 EXAMPLES = Path(__file__).parent / "examples"
+UNMATCHED_LOG = Path(__file__).parent / "unmatched.log"
+
+# Kalshi's NFL game series. Left configurable because the exact ticker must be confirmed
+# against a live pull (the Fed lane hit the same "which series is current" question).
+KALSHI_NFL_SERIES = "KXNFLGAME"
 
 
 # Kalshi series worth cross-matching. An unscoped /markets page returns whatever the
@@ -71,7 +79,7 @@ def cmd_live(args, show_rejected: bool = False):
     same, subtle = identity.pair_markets(pm, kl)
 
     candidates = [
-        MatchCandidate(a=a, b=b, title_similarity=_similarity(a.event_title, b.event_title),
+        MatchCandidate(a=a, b=b, title_similarity=0.0,
                        gap_pp=(None if a.implied_prob is None or b.implied_prob is None
                                else abs(a.implied_prob - b.implied_prob) * 100.0))
         for a, b, _ in same
@@ -81,7 +89,7 @@ def cmd_live(args, show_rejected: bool = False):
     print(f"\n{len(same)} same-question pairs, {len(subtle)} flagged subtly-different\n")
     for i, c in enumerate(candidates):
         gap = "n/a" if c.gap_pp is None else f"{c.gap_pp:>5.2f}pp"
-        print(f"[{i}] gap={gap}  (title sim {c.title_similarity:.2f})")
+        print(f"[{i}] gap={gap}")
         print(f"     PM: {c.a.event_title[:70]}  ({c.a.implied_prob})")
         print(f"     KL: {c.b.event_title[:70]}  ({c.b.implied_prob})")
 
@@ -131,16 +139,180 @@ def _emit_signal(cand, sharp=None, position=None):
         print(json.dumps(result["assembled"], indent=2))
 
 
+def _fair_values(sb_sides):
+    """Devig each game/market's two sides into fair probabilities.
+
+    Returns market_id -> fair_prob. A side is only assigned a fair value when its market has
+    exactly two priced sides (over+under, or home+away); anything else is skipped, never
+    guessed — the whole point of devig is that it needs both sides of the same book line.
+    """
+    groups = defaultdict(list)
+    for s in sb_sides:
+        groups[(s.raw.get("game_id"), s.raw.get("market"))].append(s)
+    fair = {}
+    for sides in groups.values():
+        priced = [s for s in sides if s.implied_prob is not None]
+        if len(priced) != 2:
+            continue
+        for s, f in zip(priced, devig.devig_multiplicative([s.implied_prob for s in priced])):
+            fair[s.market_id] = f
+    return fair
+
+
+def _wedge_rows(subtle):
+    """Key-number push mismatches: SUBTLY_DIFFERENT NFL *spread* pairs, ranked by the
+    outcome mass sitting on the disputed margins.
+
+    This is the wedge — the one signal that survives free/delayed data, because it turns on
+    contract STRUCTURE (which integer margins the two sides settle differently on) and a
+    stable historical margin distribution, not on a live price gap. A pair that disagrees
+    only when the game lands on margin 3 is a real edge; one that disagrees on margin 17 is
+    noise. keynumbers.push_mass draws that line. Totals are excluded: the static prior is a
+    margin-of-victory distribution, so only spreads are scored here.
+    """
+    rows = []
+    for k, s, _ in subtle:
+        ik, isb = identity.extract(k), identity.extract(s)
+        if ik.family != identity.FAMILY_NFL_SPREAD or ik.leg is None or isb.leg is None:
+            continue
+        mass, margins = keynumbers.push_mass(ik.leg, isb.leg)
+        if not margins:
+            continue
+        keys = sorted({abs(m) for m in margins})
+        rows.append((k.event_title, k.implied_prob, keys, mass * 100.0))
+    rows.sort(key=lambda r: -r[3])
+    return rows
+
+
+def _push_risk_label(ident):
+    """Plain-language 'what you're really holding' for one contract, shown on every matched
+    line whether or not there's an edge. Spread contracts hinge on a single margin (Kalshi
+    has no push, so that margin is pure loss risk); we name it and how often games land
+    there. Totals aren't scored — the static prior is a margin distribution — so they read
+    '-'. Honest literacy, never an edge claim."""
+    if ident.family != identity.FAMILY_NFL_SPREAD or ident.leg is None:
+        return "-"
+    key = keynumbers.hinge_margin(ident.leg)
+    if key is None:
+        return "-"
+    return f"hinge |{abs(key)}| ~{keynumbers.margin_prob(key) * 100:.0f}%"
+
+
+def _unmatched_reason(k, sb_sides):
+    """Why one Kalshi NFL contract found no sportsbook counterpart — for unmatched.log."""
+    ik = identity.extract(k)
+    if ik.family == identity.FAMILY_UNKNOWN or ik.referent is None:
+        return "no NFL total/spread leg parseable from title"
+    same_game = [s for s in sb_sides
+                 if identity.extract(s).referent == ik.referent]
+    if not same_game:
+        return f"no sportsbook market for game {ik.referent}"
+    # Report the gate's own reason against the closest same-game side.
+    return identity.check(k, same_game[0]).reason
+
+
+def cmd_nfl():
+    """Kalshi NFL assistant. Leads with the KEY-NUMBER PUSH MISMATCHES (the wedge), then
+    shows commodity fair value as supporting context.
+
+    Section 1 (wedge): spread contracts where Kalshi and the book settle differently on a
+    key margin (Kalshi 'win by more than 3' has no push; the book at -3 refunds it), ranked
+    by the outcome mass on the disputed margins. This is the latency-immune signal.
+
+    Section 2 (context): kalshi_contract | kalshi_price | fair_value | gap_pp for cleanly
+    matched pairs. HONEST CAVEAT — on free/delayed odds these gaps mix real divergence with
+    time skew and should not be traded on their own; they are shown for context, not edge.
+
+    Every Kalshi NFL contract that failed to match (with the reason) is logged to
+    unmatched.log — that log is the evidence for the >=80% match target either way.
+    """
+    try:
+        sb = sportsbook.fetch_markets()
+    except RuntimeError as e:                 # missing SGO key — surface honestly
+        print(e)
+        print("Cannot run the NFL match without sportsbook odds. Set SGO_API_KEY and retry.")
+        return
+    except Exception as e:                     # network / parse
+        print(f"sportsbook fetch failed: {e}")
+        return
+
+    kl = kalshi.fetch_markets(limit=200, series_ticker=KALSHI_NFL_SERIES)
+    print(f"fetched: sportsbook_sides={len(sb)}  kalshi_nfl={len(kl)} "
+          f"({KALSHI_NFL_SERIES} @ {kalshi.KALSHI_BASE})")
+    if not kl:
+        print(f"  note: 0 Kalshi NFL contracts for series {KALSHI_NFL_SERIES} — confirm the "
+              f"series ticker is current before trusting the match rate.")
+    if not sb:
+        print("  note: 0 sportsbook sides parsed — no NFL games with full-game totals/spreads.")
+
+    fair = _fair_values(sb)
+    same, subtle = identity.pair_markets(kl, sb)
+
+    # --- Section 1: the wedge (key-number push mismatches) ---
+    wedge = _wedge_rows(subtle)
+    print(f"\n=== key-number push mismatches ({len(wedge)}) — structural, latency-immune ===")
+    if wedge:
+        print(f"{'kalshi_contract':<52} | {'kl_price':>8} | {'push@|margin|':>13} | {'mass_pp':>7}")
+        print("-" * 90)
+        for title, price, keys, mass in wedge:
+            pcol = "n/a" if price is None else f"{price:.3f}"
+            print(f"{title[:52]:<52} | {pcol:>8} | {','.join(map(str, keys)):>13} | {mass:>7.2f}")
+    else:
+        print("  none — no spread pair disagreed on a scoreable margin "
+              "(needs live Kalshi spread wording to exercise).")
+
+    # --- Section 2: always-on per-contract read (the co-pilot literacy layer) ---
+    # Shown for EVERY matched contract, edge or not — the everyday reason to keep the tool
+    # open. true = book fair prob (vig stripped by devig); vs_fair = what Kalshi asks above
+    # or below that; push_risk = the margin the contract hinges on. Never a manufactured pick.
+    lit = []
+    for k, s, _ in same:
+        fv = fair.get(s.market_id)
+        if fv is None or k.implied_prob is None:
+            continue
+        risk = _push_risk_label(identity.extract(k))
+        lit.append((k.event_title, k.implied_prob, fv, (k.implied_prob - fv) * 100.0, risk))
+    lit.sort(key=lambda r: -abs(r[3]))
+
+    print(f"\nper-contract read — {len(lit)} of {len(kl)} matched "
+          f"({(len(lit) / len(kl) * 100.0):.0f}%)" if kl else "\nno Kalshi contracts to read")
+    print("  true = book fair (vig stripped); vs_fair mixes real divergence with delayed-data "
+          "skew on free odds — literacy, not a standalone edge")
+    if lit:
+        print(f"\n{'kalshi_contract':<44} | {'kl_ask':>6} | {'true':>6} | {'vs_fair':>7} | "
+              f"{'push_risk':>13}")
+        print("-" * 92)
+        for title, ask, fv, gap, risk in lit:
+            print(f"{title[:44]:<44} | {ask:>6.3f} | {fv:>6.3f} | {gap:>+7.2f} | {risk:>13}")
+
+    matched_ids = {k.market_id for k, _, _ in same}
+    unmatched = [k for k in kl if k.market_id not in matched_ids]
+    if unmatched:
+        with UNMATCHED_LOG.open("w") as fh:
+            fh.write(f"# {len(unmatched)} unmatched Kalshi NFL contracts "
+                     f"(series {KALSHI_NFL_SERIES})\n")
+            for k in unmatched:
+                fh.write(f"{k.market_id}\t{k.event_title}\t{_unmatched_reason(k, sb)}\n")
+        print(f"\nlogged {len(unmatched)} unmatched contracts -> {UNMATCHED_LOG}")
+    if subtle:
+        print(f"({len(subtle)} subtly-different pairs total; spread mismatches surfaced as the "
+              f"wedge above, non-scoreable ones held back)")
+
+
 def main():
     p = argparse.ArgumentParser(description="Cross-venue prediction-market signal companion")
     p.add_argument("--demo", action="store_true", help="run signal on bundled FOMC example")
     p.add_argument("--signal", type=int, metavar="N", help="run signal on live candidate #N")
+    p.add_argument("--nfl", action="store_true",
+                   help="match live Kalshi NFL contracts to devigged sportsbook fair value")
     p.add_argument("--show-rejected", action="store_true",
                    help="print every gate-rejected pair (for auditing what the gate ate)")
     args = p.parse_args()
 
     if args.demo:
         cmd_demo()
+    elif args.nfl:
+        cmd_nfl()
     elif args.signal is not None:
         cmd_signal(args.signal)
     else:

@@ -43,6 +43,7 @@ trader as edge costs us the trader.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -57,6 +58,18 @@ from models import NormalizedMarket
 FAMILY_CHANGE = "fed_rate_change"
 FAMILY_LEVEL = "fed_rate_level"
 FAMILY_UNKNOWN = "unknown"
+
+# NFL families. Same interval machinery as the Fed change-market, on a different axis:
+#   nfl_total  -> total points scored in one game       ("over 45.5" -> (45.5, +inf))
+#   nfl_spread -> game margin, from a canonical team's perspective (see _spread_interval)
+# The referent is the game (a canonical unordered team-pair), and settlement authority is
+# the game result itself, so both venues share one authority constant.
+FAMILY_NFL_TOTAL = "nfl_total"
+FAMILY_NFL_SPREAD = "nfl_spread"
+AUTHORITY_NFL = "nfl_game_result"
+
+# Families whose identity turns on an interval `leg` (vs the level market's scalar bound).
+_LEG_FAMILIES = (FAMILY_CHANGE, FAMILY_NFL_TOTAL, FAMILY_NFL_SPREAD)
 
 SAME_QUESTION = "SAME_QUESTION"
 SUBTLY_DIFFERENT = "SUBTLY_DIFFERENT"
@@ -89,7 +102,7 @@ class EventIdentity:
             return f"level>{self.level_bound}% @ {self.referent}"
         if self.leg is None:
             return f"unparsed @ {self.referent}"
-        return f"{_leg_label(self.leg)} @ {self.referent}"
+        return f"{_leg_label(self.leg, self.family)} @ {self.referent}"
 
 
 @dataclass(frozen=True)
@@ -103,8 +116,20 @@ class IdentityVerdict:
         return self.status == SAME_QUESTION
 
 
-def _leg_label(iv: Interval) -> str:
+def _leg_label(iv: Interval, family: str = FAMILY_CHANGE) -> str:
     lo, hi = iv
+    if family == FAMILY_NFL_TOTAL:
+        if hi == INF:
+            return f"over {lo:g}"
+        if lo == -INF:
+            return f"under {hi:g}"
+        return f"[{lo:g},{hi:g}]pts"
+    if family == FAMILY_NFL_SPREAD:
+        if hi == INF:
+            return f"margin>{lo:g}"
+        if lo == -INF:
+            return f"margin<{hi:g}"
+        return f"[{lo:g},{hi:g}]margin"
     if lo == 0 and hi == 0:
         return "hold(0bps)"
     if lo == hi:
@@ -189,8 +214,243 @@ def _close_date(iso: str) -> Optional[str]:
         return None
 
 
+# --- NFL extraction -------------------------------------------------------------------
+# Canonical team codes. Both venues must derive the SAME game key, so we normalize every
+# spelling a market might use (nickname, "City Nickname", the code itself) to one code.
+# Bare ambiguous cities ("los angeles", "new york") are intentionally NOT keys — they
+# cannot disambiguate the two co-located franchises, so we require the nickname.
+_NFL_TEAMS = {
+    "bills": "BUF", "buffalo bills": "BUF",
+    "dolphins": "MIA", "miami dolphins": "MIA",
+    "patriots": "NE", "new england patriots": "NE",
+    "jets": "NYJ", "new york jets": "NYJ",
+    "ravens": "BAL", "baltimore ravens": "BAL",
+    "bengals": "CIN", "cincinnati bengals": "CIN",
+    "browns": "CLE", "cleveland browns": "CLE",
+    "steelers": "PIT", "pittsburgh steelers": "PIT",
+    "texans": "HOU", "houston texans": "HOU",
+    "colts": "IND", "indianapolis colts": "IND",
+    "jaguars": "JAX", "jacksonville jaguars": "JAX",
+    "titans": "TEN", "tennessee titans": "TEN",
+    "broncos": "DEN", "denver broncos": "DEN",
+    "chiefs": "KC", "kansas city chiefs": "KC", "kansas city": "KC",
+    "raiders": "LV", "las vegas raiders": "LV",
+    "chargers": "LAC", "los angeles chargers": "LAC",
+    "cowboys": "DAL", "dallas cowboys": "DAL",
+    "giants": "NYG", "new york giants": "NYG",
+    "eagles": "PHI", "philadelphia eagles": "PHI",
+    "commanders": "WAS", "washington commanders": "WAS",
+    "bears": "CHI", "chicago bears": "CHI",
+    "lions": "DET", "detroit lions": "DET",
+    "packers": "GB", "green bay packers": "GB", "green bay": "GB",
+    "vikings": "MIN", "minnesota vikings": "MIN",
+    "falcons": "ATL", "atlanta falcons": "ATL",
+    "panthers": "CAR", "carolina panthers": "CAR",
+    "saints": "NO", "new orleans saints": "NO",
+    "buccaneers": "TB", "bucs": "TB", "tampa bay buccaneers": "TB", "tampa bay": "TB",
+    "cardinals": "ARI", "arizona cardinals": "ARI",
+    "rams": "LA", "los angeles rams": "LA",
+    "49ers": "SF", "niners": "SF", "san francisco 49ers": "SF", "san francisco": "SF",
+    "seahawks": "SEA", "seattle seahawks": "SEA",
+}
+# Longest aliases first so "kansas city chiefs" wins over "kansas city".
+_NFL_ALIASES = sorted(_NFL_TEAMS, key=len, reverse=True)
+
+# Over/under wording, split by boundary. NFL points & margins are integers, so we snap
+# every line to an integer-endpoint interval: strict "over 45.5" -> [46, inf); inclusive
+# "46 or more" -> [46, inf). Snapping is what makes over/under exact complements (they no
+# longer share the .5 point) while still flagging a 45.5-vs-46 line move as SUBTLY_DIFFERENT.
+_OVER_EXCL = ("over", "more than", "greater than", "above")
+_OVER_INCL = ("at least", "or more")
+_UNDER_EXCL = ("under", "less than", "fewer than", "below")
+_UNDER_INCL = ("or fewer", "or less", "at most")
+# A total is the COMBINED game score; require an explicit combined-scoring cue so a
+# single-team team-total ("Chiefs over 30.5") is not mistaken for the game total.
+_TOTAL_CUES = ("combined", "combine", "total points", "total of", "game total",
+               "points scored", "total score")
+_SPREAD_CUES = ("win by", "beat", "margin", "cover", "spread", "by more than",
+                "by at least", "by over")
+
+
+def _nfl_team_codes(text: str) -> list:
+    """Distinct canonical codes named in `text`, in first-appearance order."""
+    t = (text or "").lower()
+    hits = []
+    for alias in _NFL_ALIASES:
+        if re.search(rf"\b{re.escape(alias)}\b", t):
+            code = _NFL_TEAMS[alias]
+            if code not in hits:
+                hits.append((t.index(alias), code))
+    return [c for _, c in sorted(hits)]
+
+
+def _nfl_referent(codes) -> Optional[str]:
+    """Order-independent game key from exactly two team codes. The date is NOT baked in
+    (a late game crossing UTC midnight would desync it); the close-date gate separates the
+    once- or twice-a-season repeat meetings between the same teams instead."""
+    uniq = sorted(set(codes))
+    return "-".join(uniq) if len(uniq) == 2 else None
+
+
+def _first_number(text: str) -> Optional[float]:
+    m = re.search(r"(\d+(?:\.\d+)?)", text or "")
+    return float(m.group(1)) if m else None
+
+
+def _gt_interval(x: float, inclusive: bool) -> Interval:
+    """Integer-snapped 'score greater than x' ( >= x if inclusive )."""
+    lo = math.ceil(x) if inclusive else math.floor(x) + 1
+    return (float(lo), INF)
+
+
+def _lt_interval(x: float, inclusive: bool) -> Interval:
+    """Integer-snapped 'score less than x' ( <= x if inclusive )."""
+    hi = math.floor(x) if inclusive else math.ceil(x) - 1
+    return (-INF, float(hi))
+
+
+def _nfl_total_interval(text: str) -> Optional[Interval]:
+    """Combined-total wording -> integer-snapped points interval, or None if unreadable."""
+    t = (text or "").lower()
+    line = _first_number(t)
+    if line is None:
+        return None
+    over_excl, over_incl = _any(t, _OVER_EXCL), _any(t, _OVER_INCL)
+    under_excl, under_incl = _any(t, _UNDER_EXCL), _any(t, _UNDER_INCL)
+    is_over, is_under = over_excl or over_incl, under_excl or under_incl
+    if is_over == is_under:              # neither, or contradictory
+        return None
+    if is_over:
+        return _gt_interval(line, inclusive=over_incl and not over_excl)
+    return _lt_interval(line, inclusive=under_incl and not under_excl)
+
+
+def _any(t: str, words) -> bool:
+    return any(w in t for w in words)
+
+
+def _flip(iv: Interval) -> Interval:
+    """Same margin condition seen from the OTHER team: margin_T = -margin_opp."""
+    lo, hi = iv
+    return (-hi, -lo)
+
+
+def _to_ref(iv: Interval, subject: str, ref_code: str) -> Interval:
+    """Re-express a subject-team margin interval on the canonical reference team's axis, so
+    both venues land on one shared axis regardless of which team they named."""
+    return iv if subject == ref_code else _flip(iv)
+
+
+def _spread_interval(team_code: str, handicap: float, ref_code: str) -> Interval:
+    """Sportsbook side: team T at signed handicap h covers iff margin_T > -h. Integer-snapped
+    (margins are whole numbers) and re-expressed on the reference axis via _to_ref."""
+    return _to_ref(_gt_interval(-handicap, inclusive=False), team_code, ref_code)
+
+
+def _nfl_spread_leg(text: str, codes, ref_code: str) -> Optional[Interval]:
+    """Parse a team-subject spread to a canonical margin interval, fail-closed.
+
+    The subject is the EARLIEST-named team (the one "win by"/"lose by" attaches to). Sign:
+      favored  ('win by more than X' / '-X')   -> margin_subject >  X   (X, +inf)
+      underdog ('+X')                          -> margin_subject > -X   (-X, +inf)
+      losing   ('lose by more than X')         -> margin_subject < -X   (-inf, -X)
+    An inclusive cue ('X or more', 'at least X', 'Xplus') keeps the endpoint (>= / <=), which
+    is exactly what separates a no-push Kalshi contract from a book line where the key number
+    is a live push. Without the cue the boundary is strict, matching a book '-X' cover.
+    Anything else (no team in the game, no number) returns None -> DIFFERENT_QUESTION.
+    """
+    t = (text or "").lower()
+    best = None
+    for alias in _NFL_ALIASES:
+        mm = re.search(rf"\b{re.escape(alias)}\b", t)
+        if mm:
+            code = _NFL_TEAMS[alias]
+            if code in codes and (best is None or mm.start() < best[0]):
+                best = (mm.start(), code)
+    if best is None:
+        return None
+    subject = best[1]
+    num = _first_number(t)
+    if num is None:
+        return None
+    plus = bool(re.search(r"\+\s*\d", t)) or "underdog" in t
+    lose = "lose by" in t or "loses by" in t or "lose to" in t
+    inclusive = _any(t, _OVER_INCL) or bool(re.search(r"\d\s*\+", t))
+    if lose:
+        subj_iv: Interval = _lt_interval(-num, inclusive=inclusive)   # margin_subject < -num
+    elif plus:
+        subj_iv = _gt_interval(-num, inclusive=inclusive)             # margin_subject > -num
+    else:
+        subj_iv = _gt_interval(num, inclusive=inclusive)              # margin_subject > num
+    return _to_ref(subj_iv, subject, ref_code)
+
+
+def _extract_nfl(m: NormalizedMarket) -> EventIdentity:
+    """Structured identity for an NFL total/spread market (either venue).
+
+    Sportsbook rows carry structured `raw` (market/side/line/teams) and are read from it
+    directly — deterministic, no wording to parse. Everything else (Kalshi contracts) is
+    parsed from the title/resolution blob and fails closed when the wording is unreadable.
+    """
+    raw = m.raw or {}
+    if raw.get("source") == "sportsgameodds":
+        away = _nfl_team_codes(raw.get("away", ""))
+        home = _nfl_team_codes(raw.get("home", ""))
+        codes = (away[:1] + home[:1]) or _nfl_team_codes(m.event_title)
+        ref = _nfl_referent(codes)
+        market, side, line = raw.get("market"), raw.get("side"), raw.get("line")
+        leg = None
+        family = FAMILY_UNKNOWN
+        if ref and line is not None:
+            if market == "total":
+                family = FAMILY_NFL_TOTAL
+                leg = (_gt_interval(float(line), inclusive=False) if side == "over"
+                       else _lt_interval(float(line), inclusive=False))
+            elif market == "spread":
+                family = FAMILY_NFL_SPREAD
+                team_code = (home[:1] if side == "home" else away[:1])
+                ref_code = sorted(set(codes))[0] if ref else None
+                if team_code and ref_code:
+                    leg = _spread_interval(team_code[0], float(line), ref_code)
+        return EventIdentity(family if leg else FAMILY_UNKNOWN,
+                             ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time))
+
+    blob = " ".join(filter(None, (m.event_title, m.resolution_criteria, m.market_id)))
+    codes = _nfl_team_codes(blob)
+    ref = _nfl_referent(codes)
+    t = blob.lower()
+    leg, family = None, FAMILY_UNKNOWN
+    if ref:
+        is_spread = any(c in t for c in _SPREAD_CUES)
+        is_total = any(c in t for c in _TOTAL_CUES)
+        if is_spread and not is_total:
+            ref_code = sorted(set(codes))[0]
+            leg = _nfl_spread_leg(blob, codes, ref_code)
+            family = FAMILY_NFL_SPREAD if leg else FAMILY_UNKNOWN
+        elif is_total:
+            leg = _nfl_total_interval(blob)
+            family = FAMILY_NFL_TOTAL if leg else FAMILY_UNKNOWN
+    return EventIdentity(family, ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time))
+
+
+def _looks_like_nfl(m: NormalizedMarket) -> bool:
+    if (m.raw or {}).get("source") == "sportsgameodds":
+        return True
+    blob = " ".join(filter(None, (m.event_title, m.resolution_criteria, m.market_id)))
+    return len(_nfl_team_codes(blob)) >= 2
+
+
 def extract(m: NormalizedMarket) -> EventIdentity:
-    """Structured identity for one market.
+    """Structured identity for one market. Routes NFL markets to the NFL parser and
+    everything else to the Fed parser; the family gate keeps the two axes from ever
+    being compared against each other."""
+    if _looks_like_nfl(m):
+        return _extract_nfl(m)
+    return _extract_fed(m)
+
+
+def _extract_fed(m: NormalizedMarket) -> EventIdentity:
+    """Structured identity for one Fed rate-decision market.
 
     The outcome leg comes from the TITLE, never from the resolution text. Within a series
     every market shares the same resolution boilerplate — Polymarket's Fed contracts all
@@ -272,20 +532,21 @@ def compare(ia: EventIdentity, ib: EventIdentity,
                                f"different meetings: {ia.referent} vs {ib.referent}")
 
     # 2. Outcome leg — the check that catches complements.
-    if ia.family == FAMILY_CHANGE:
+    if ia.family in _LEG_FAMILIES:
         if ia.leg is None or ib.leg is None:
             return IdentityVerdict(DIFFERENT_QUESTION, "outcome_leg",
                                    "could not resolve an outcome leg — fail-closed")
         if not _overlaps(ia.leg, ib.leg):
             return IdentityVerdict(
                 DIFFERENT_QUESTION, "outcome_leg",
-                f"complementary legs: {_leg_label(ia.leg)} vs {_leg_label(ib.leg)} cannot both "
-                f"pay out, so the price difference is not a disagreement")
+                f"complementary legs: {_leg_label(ia.leg, ia.family)} vs "
+                f"{_leg_label(ib.leg, ib.family)} cannot both pay out, so the price "
+                f"difference is not a disagreement")
         if ia.leg != ib.leg:
             return IdentityVerdict(
                 SUBTLY_DIFFERENT, "outcome_leg",
-                f"overlapping but unequal legs: {_leg_label(ia.leg)} vs {_leg_label(ib.leg)} — "
-                f"they settle differently in part of the range")
+                f"overlapping but unequal legs: {_leg_label(ia.leg, ia.family)} vs "
+                f"{_leg_label(ib.leg, ib.family)} — they settle differently in part of the range")
     elif ia.level_bound != ib.level_bound:
         return IdentityVerdict(DIFFERENT_QUESTION, "outcome_leg",
                                f"different thresholds: {ia.level_bound}% vs {ib.level_bound}%")
@@ -310,9 +571,10 @@ def compare(ia: EventIdentity, ib: EventIdentity,
                                f"than {max_close_gap_days}d")
 
     return IdentityVerdict(SAME_QUESTION, None,
-                           f"same meeting ({ia.referent}), same leg ({_leg_label(ia.leg)}), "
-                           f"same authority, closes within {max_close_gap_days}d"
-                           if ia.leg else f"same meeting ({ia.referent}), same threshold")
+                           f"same referent ({ia.referent}), same leg "
+                           f"({_leg_label(ia.leg, ia.family)}), same authority, closes "
+                           f"within {max_close_gap_days}d"
+                           if ia.leg else f"same referent ({ia.referent}), same threshold")
 
 
 def pair_markets(venue_a, venue_b, max_close_gap_days: int = 1):
@@ -341,12 +603,13 @@ def pair_markets(venue_a, venue_b, max_close_gap_days: int = 1):
             continue                      # fail-closed: unindexable is unmatchable
         index.setdefault((i.family, i.referent, i.leg, i.level_bound, i.authority), []).append((m, i))
 
-    # Meeting-level buckets for the SUBTLY_DIFFERENT sweep, which needs leg *overlap*
-    # rather than leg equality and so cannot be answered by an exact key.
+    # Referent-level buckets for the SUBTLY_DIFFERENT sweep, which needs leg *overlap*
+    # rather than leg equality and so cannot be answered by an exact key. Keyed by
+    # (family, referent) so a Fed meeting and an NFL game never share a bucket.
     by_meeting: dict = {}
     for m, i in ids_b:
-        if i.family == FAMILY_CHANGE and i.referent and i.leg:
-            by_meeting.setdefault(i.referent, []).append((m, i))
+        if i.family in _LEG_FAMILIES and i.referent and i.leg:
+            by_meeting.setdefault((i.family, i.referent), []).append((m, i))
 
     same, subtle = [], []
     for a, ia in ids_a:
@@ -358,8 +621,8 @@ def pair_markets(venue_a, venue_b, max_close_gap_days: int = 1):
             if v.is_same:
                 same.append((a, b, v))
 
-        if ia.family == FAMILY_CHANGE and ia.leg:
-            for b, ib in by_meeting.get(ia.referent, ()):
+        if ia.family in _LEG_FAMILIES and ia.leg:
+            for b, ib in by_meeting.get((ia.family, ia.referent), ()):
                 if ib.leg == ia.leg:
                     continue              # already handled by the exact join
                 v = compare(ia, ib, max_close_gap_days)
