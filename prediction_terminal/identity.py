@@ -96,6 +96,12 @@ class EventIdentity:
     level_bound: Optional[float]   # for level markets: the threshold in percent
     authority: Optional[str]       # canonical settlement authority
     close_date: Optional[str]      # ISO date
+    # The WIN-OR-PUSH interval: margins on which the contract does NOT lose money (win OR
+    # refund). For a binary Kalshi contract it equals `leg` (a binary market can never push).
+    # For a sportsbook line at an INTEGER handicap/total it is `leg` widened by the one margin
+    # that lands exactly on the number and refunds. Two contracts can share an identical win
+    # `leg` yet differ here — that is the push hiding inside a look-alike line.
+    push_leg: Optional[Interval] = None
 
     def describe(self) -> str:
         if self.family == FAMILY_LEVEL:
@@ -347,6 +353,41 @@ def _spread_interval(team_code: str, handicap: float, ref_code: str) -> Interval
     return _to_ref(_gt_interval(-handicap, inclusive=False), team_code, ref_code)
 
 
+def _book_push_leg(leg: Interval, line) -> Interval:
+    """A sportsbook line's WIN-OR-PUSH interval. Only an INTEGER line pushes (the game can
+    land exactly on it and refund); at that margin the book neither wins nor loses, so the
+    win interval widens by one integer toward the boundary. A half-point line cannot push,
+    so its win-or-push interval is just the win interval. Kalshi never calls this — a binary
+    contract has no refund state, so its push_leg is always its leg."""
+    if line is None or not float(line).is_integer():
+        return leg
+    lo, hi = leg
+    if hi == INF and lo != -INF:
+        return (lo - 1.0, INF)
+    if lo == -INF and hi != INF:
+        return (-INF, hi + 1.0)
+    return leg
+
+
+def _disputed_ints(a: Interval, b: Interval, cap: int = 60) -> list:
+    """Integer margins on which membership in `a` and `b` differs — their symmetric
+    difference on the integer axis. Used only to NAME the contested margin in a verdict; the
+    gate's correctness turns on interval equality, not on this scan. Kept local so the gate
+    stays free of the margin-frequency prior that lives in keynumbers."""
+    lo = max(min(_fin_lo(a), _fin_lo(b)), -cap)
+    hi = min(max(_fin_hi(a), _fin_hi(b)), cap)
+    return [m for m in range(int(math.floor(lo)), int(math.ceil(hi)) + 1)
+            if (a[0] <= m <= a[1]) != (b[0] <= m <= b[1])]
+
+
+def _fin_lo(iv: Interval) -> float:
+    return iv[0] if iv[0] != -INF else iv[1]
+
+
+def _fin_hi(iv: Interval) -> float:
+    return iv[1] if iv[1] != INF else iv[0]
+
+
 def _nfl_spread_leg(text: str, codes, ref_code: str) -> Optional[Interval]:
     """Parse a team-subject spread to a canonical margin interval, fail-closed.
 
@@ -412,8 +453,10 @@ def _extract_nfl(m: NormalizedMarket) -> EventIdentity:
                 ref_code = sorted(set(codes))[0] if ref else None
                 if team_code and ref_code:
                     leg = _spread_interval(team_code[0], float(line), ref_code)
+        push = _book_push_leg(leg, line) if leg else None
         return EventIdentity(family if leg else FAMILY_UNKNOWN,
-                             ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time))
+                             ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time),
+                             push_leg=push)
 
     blob = " ".join(filter(None, (m.event_title, m.resolution_criteria, m.market_id)))
     codes = _nfl_team_codes(blob)
@@ -430,7 +473,10 @@ def _extract_nfl(m: NormalizedMarket) -> EventIdentity:
         elif is_total:
             leg = _nfl_total_interval(blob)
             family = FAMILY_NFL_TOTAL if leg else FAMILY_UNKNOWN
-    return EventIdentity(family, ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time))
+    # A Kalshi contract is binary — it resolves Yes or No and never refunds — so its
+    # win-or-push interval is exactly its win leg. The push lives only on the book side.
+    return EventIdentity(family, ref, leg, None, AUTHORITY_NFL, _close_date(m.close_time),
+                         push_leg=leg)
 
 
 def _looks_like_nfl(m: NormalizedMarket) -> bool:
@@ -547,6 +593,19 @@ def compare(ia: EventIdentity, ib: EventIdentity,
                 SUBTLY_DIFFERENT, "outcome_leg",
                 f"overlapping but unequal legs: {_leg_label(ia.leg, ia.family)} vs "
                 f"{_leg_label(ib.leg, ib.family)} — they settle differently in part of the range")
+        # Win legs are identical here. They can still settle differently on a PUSH: a book at
+        # an integer key number refunds where a look-alike half-point Kalshi contract pays out
+        # or loses outright. Comparing only win intervals would wave this through as SAME and
+        # bury the entire push mass at one of the most common margins — the inverse of the
+        # complement bug the leg check exists to catch.
+        pa = ia.push_leg if ia.push_leg is not None else ia.leg
+        pb = ib.push_leg if ib.push_leg is not None else ib.leg
+        if pa != pb:
+            return IdentityVerdict(
+                SUBTLY_DIFFERENT, "outcome_leg",
+                f"identical win legs ({_leg_label(ia.leg, ia.family)}) but a push splits them "
+                f"at margin {_disputed_ints(pa, pb)}: one side refunds there while the other "
+                f"pays out or loses, so the price gap is real, not noise")
     elif ia.level_bound != ib.level_bound:
         return IdentityVerdict(DIFFERENT_QUESTION, "outcome_leg",
                                f"different thresholds: {ia.level_bound}% vs {ib.level_bound}%")
@@ -620,6 +679,11 @@ def pair_markets(venue_a, venue_b, max_close_gap_days: int = 1):
             v = compare(ia, ib, max_close_gap_days)
             if v.is_same:
                 same.append((a, b, v))
+            elif v.status == SUBTLY_DIFFERENT:
+                # Same win-leg index bucket, but compare() found a push splitting them. This is
+                # the book-integer-vs-Kalshi-half-point wedge; it never reaches the overlap
+                # sweep below (that skips equal legs), so surface it here or it vanishes.
+                subtle.append((a, b, v))
 
         if ia.family in _LEG_FAMILIES and ia.leg:
             for b, ib in by_meeting.get((ia.family, ia.referent), ()):

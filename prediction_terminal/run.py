@@ -31,9 +31,11 @@ from signal import run_signal
 EXAMPLES = Path(__file__).parent / "examples"
 UNMATCHED_LOG = Path(__file__).parent / "unmatched.log"
 
-# Kalshi's NFL game series. Left configurable because the exact ticker must be confirmed
-# against a live pull (the Fed lane hit the same "which series is current" question).
-KALSHI_NFL_SERIES = "KXNFLGAME"
+# Kalshi's NFL spread and total series. KXNFLGAME is the MONEYLINE series ("will X win the
+# game?") — it carries no handicap or total to cross-match against a book line, so pulling it
+# was the reason the match came back empty. The 2026-08-10 live pull confirmed spreads live
+# under KXNFLSPREAD and totals under KXNFLTOTAL, both quoted at half-points only.
+KALSHI_NFL_SERIES = ("KXNFLSPREAD", "KXNFLTOTAL")
 
 
 # Kalshi series worth cross-matching. An unscoped /markets page returns whatever the
@@ -167,15 +169,18 @@ def _wedge_rows(subtle):
     contract STRUCTURE (which integer margins the two sides settle differently on) and a
     stable historical margin distribution, not on a live price gap. A pair that disagrees
     only when the game lands on margin 3 is a real edge; one that disagrees on margin 17 is
-    noise. keynumbers.push_mass draws that line. Totals are excluded: the static prior is a
-    margin-of-victory distribution, so only spreads are scored here.
+    noise. keynumbers.contested_mass draws that line, PUSHES INCLUDED: the dominant case is a
+    book integer key number that refunds where the look-alike Kalshi half-point contract does
+    not, so the win legs are identical and only the win-or-push legs diverge. Totals are
+    excluded: the static prior is a margin-of-victory distribution, so only spreads are scored.
     """
     rows = []
     for k, s, _ in subtle:
         ik, isb = identity.extract(k), identity.extract(s)
         if ik.family != identity.FAMILY_NFL_SPREAD or ik.leg is None or isb.leg is None:
             continue
-        mass, margins = keynumbers.push_mass(ik.leg, isb.leg)
+        mass, margins = keynumbers.contested_mass(
+            ik.leg, ik.push_leg or ik.leg, isb.leg, isb.push_leg or isb.leg)
         if not margins:
             continue
         keys = sorted({abs(m) for m in margins})
@@ -184,18 +189,23 @@ def _wedge_rows(subtle):
     return rows
 
 
-def _push_risk_label(ident):
-    """Plain-language 'what you're really holding' for one contract, shown on every matched
-    line whether or not there's an edge. Spread contracts hinge on a single margin (Kalshi
-    has no push, so that margin is pure loss risk); we name it and how often games land
-    there. Totals aren't scored — the static prior is a margin distribution — so they read
-    '-'. Honest literacy, never an edge claim."""
-    if ident.family != identity.FAMILY_NFL_SPREAD or ident.leg is None:
+def _push_risk_label(book_ident):
+    """Plain-language 'what the matched book line refunds' — the push-risk read, shown on
+    every matched line whether or not there's an edge. Push risk lives on the BOOK side of the
+    pair: a Kalshi contract is binary and never refunds, so it carries none. When the matched
+    book spread is an integer key number it refunds at exactly that margin, which a look-alike
+    half-point Kalshi contract does NOT give back — we name that margin and how often games
+    land there. A half-point book line (no push) or a non-spread reads '-'. Never an edge
+    claim; literacy about where the two contracts quietly differ."""
+    if book_ident.family != identity.FAMILY_NFL_SPREAD or book_ident.leg is None:
         return "-"
-    key = keynumbers.hinge_margin(ident.leg)
-    if key is None:
+    if book_ident.push_leg is None or book_ident.push_leg == book_ident.leg:
+        return "-"                                  # half-point book line — nothing to push on
+    disputed = keynumbers.disputed_margins(book_ident.leg, book_ident.push_leg)
+    if not disputed:
         return "-"
-    return f"hinge |{abs(key)}| ~{keynumbers.margin_prob(key) * 100:.0f}%"
+    m = disputed[0]
+    return f"book pushes |{abs(m)}| ~{keynumbers.margin_prob(m) * 100:.0f}%"
 
 
 def _unmatched_reason(k, sb_sides):
@@ -236,12 +246,13 @@ def cmd_nfl():
         print(f"sportsbook fetch failed: {e}")
         return
 
-    kl = kalshi.fetch_markets(limit=200, series_ticker=KALSHI_NFL_SERIES)
+    kl = [m for s in KALSHI_NFL_SERIES
+          for m in kalshi.fetch_markets(limit=200, series_ticker=s)]
     print(f"fetched: sportsbook_sides={len(sb)}  kalshi_nfl={len(kl)} "
-          f"({KALSHI_NFL_SERIES} @ {kalshi.KALSHI_BASE})")
+          f"({'+'.join(KALSHI_NFL_SERIES)} @ {kalshi.KALSHI_BASE})")
     if not kl:
-        print(f"  note: 0 Kalshi NFL contracts for series {KALSHI_NFL_SERIES} — confirm the "
-              f"series ticker is current before trusting the match rate.")
+        print(f"  note: 0 Kalshi NFL contracts for series {'+'.join(KALSHI_NFL_SERIES)} — "
+              f"confirm the series tickers are current before trusting the match rate.")
     if not sb:
         print("  note: 0 sportsbook sides parsed — no NFL games with full-game totals/spreads.")
 
@@ -251,6 +262,8 @@ def cmd_nfl():
     # --- Section 1: the wedge (key-number push mismatches) ---
     wedge = _wedge_rows(subtle)
     print(f"\n=== key-number push mismatches ({len(wedge)}) — structural, latency-immune ===")
+    print("  mass_pp uses a REGULAR-SEASON margin prior; preseason margins don't follow it, so "
+          "treat mass as directional until the regular season (~Sept 10)")
     if wedge:
         print(f"{'kalshi_contract':<52} | {'kl_price':>8} | {'push@|margin|':>13} | {'mass_pp':>7}")
         print("-" * 90)
@@ -263,14 +276,15 @@ def cmd_nfl():
 
     # --- Section 2: always-on per-contract read (the co-pilot literacy layer) ---
     # Shown for EVERY matched contract, edge or not — the everyday reason to keep the tool
-    # open. true = book fair prob (vig stripped by devig); vs_fair = what Kalshi asks above
-    # or below that; push_risk = the margin the contract hinges on. Never a manufactured pick.
+    # open. true = book fair prob (vig stripped by devig); vs_fair = what Kalshi asks above or
+    # below that; push_risk = where the MATCHED BOOK LINE refunds (the Kalshi side never does).
+    # Never a manufactured pick.
     lit = []
     for k, s, _ in same:
         fv = fair.get(s.market_id)
         if fv is None or k.implied_prob is None:
             continue
-        risk = _push_risk_label(identity.extract(k))
+        risk = _push_risk_label(identity.extract(s))
         lit.append((k.event_title, k.implied_prob, fv, (k.implied_prob - fv) * 100.0, risk))
     lit.sort(key=lambda r: -abs(r[3]))
 
@@ -278,19 +292,21 @@ def cmd_nfl():
           f"({(len(lit) / len(kl) * 100.0):.0f}%)" if kl else "\nno Kalshi contracts to read")
     print("  true = book fair (vig stripped); vs_fair mixes real divergence with delayed-data "
           "skew on free odds — literacy, not a standalone edge")
+    print("  push_risk names where the matched book line refunds — Kalshi is binary and never "
+          "pushes, so that mass is only on the book side of the pair")
     if lit:
         print(f"\n{'kalshi_contract':<44} | {'kl_ask':>6} | {'true':>6} | {'vs_fair':>7} | "
-              f"{'push_risk':>13}")
-        print("-" * 92)
+              f"{'push_risk':>16}")
+        print("-" * 95)
         for title, ask, fv, gap, risk in lit:
-            print(f"{title[:44]:<44} | {ask:>6.3f} | {fv:>6.3f} | {gap:>+7.2f} | {risk:>13}")
+            print(f"{title[:44]:<44} | {ask:>6.3f} | {fv:>6.3f} | {gap:>+7.2f} | {risk:>16}")
 
     matched_ids = {k.market_id for k, _, _ in same}
     unmatched = [k for k in kl if k.market_id not in matched_ids]
     if unmatched:
         with UNMATCHED_LOG.open("w") as fh:
             fh.write(f"# {len(unmatched)} unmatched Kalshi NFL contracts "
-                     f"(series {KALSHI_NFL_SERIES})\n")
+                     f"(series {'+'.join(KALSHI_NFL_SERIES)})\n")
             for k in unmatched:
                 fh.write(f"{k.market_id}\t{k.event_title}\t{_unmatched_reason(k, sb)}\n")
         print(f"\nlogged {len(unmatched)} unmatched contracts -> {UNMATCHED_LOG}")

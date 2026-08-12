@@ -194,6 +194,21 @@ class TestJoinAndCrossFamily:
         assert len(same) == 3
         assert all(v.is_same for _, _, v in same)
 
+    def test_pair_markets_routes_the_inverted_push_to_subtle_not_same(self):
+        # The live pull's finding: Kalshi only quotes half-points, books quote integers. A
+        # book -3 (pushes at 3) and Kalshi "more than 3.5" share an IDENTICAL win leg, so the
+        # exact-join would call them SAME. They must instead land in `subtle` — the push mass
+        # at margin 3 is a real disagreement hiding inside a look-alike line.
+        ev = dict(SGO_EVENT, odds={
+            "points-home-game-sp-home": {"byBookmaker": {"pinnacle": {"odds": -110, "spread": -3.0}}},
+            "points-away-game-sp-away": {"byBookmaker": {"pinnacle": {"odds": -110, "spread": 3.0}}},
+        })
+        book_int = list(sportsbook.parse_event(ev))
+        kalshi = [kl("Will the Chiefs beat the Bills by more than 3.5 points?")]
+        same, subtle = pair_markets(kalshi, book_int)
+        assert not any(v.is_same for _, _, v in same)
+        assert any(v.status == SUBTLY_DIFFERENT for _, _, v in subtle)
+
     def test_nfl_never_crosses_with_fed(self):
         fed = NormalizedMarket(
             venue="kalshi", market_id="KXFEDDECISION-26SEP-H0",

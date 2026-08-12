@@ -14,6 +14,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prediction_terminal"))
 
 from keynumbers import (  # noqa: E402
+    contested_margins,
+    contested_mass,
     disputed_margins,
     hinge_margin,
     margin_prob,
@@ -88,3 +90,39 @@ class TestPushMass:
         mass, margins = push_mass((4.0, INF), (4.0, INF))
         assert mass == 0.0
         assert margins == []
+
+
+class TestContestedMargins:
+    def test_hidden_push_contested_even_when_win_legs_match(self):
+        # THE INVERTED WEDGE. Book -3 (win at >=4, PUSH at 3) vs Kalshi "more than 3.5"
+        # (win at >=4, LOSE at 3): win legs are IDENTICAL (4, inf), so disputed_margins on
+        # the win legs alone sees nothing. But the win-or-push legs differ — the book's
+        # refunds at 3 while Kalshi loses. contested_margins must catch that push.
+        win = (4.0, INF)
+        book_push = (3.0, INF)   # book refunds down to margin 3
+        kalshi_push = (4.0, INF)  # Kalshi binary, never pushes
+        assert disputed_margins(win, win) == []          # win-leg view is blind to it
+        assert contested_margins(win, book_push, win, kalshi_push) == [3]
+
+    def test_line_move_and_push_both_counted(self):
+        # A genuine line move (unequal win legs) PLUS a push: union of both symdiffs.
+        # Book -3 win leg (4,inf) push (3,inf); Kalshi "more than 4.5" win/push (5,inf).
+        margins = contested_margins((4.0, INF), (3.0, INF), (5.0, INF), (5.0, INF))
+        assert margins == [3, 4]
+
+    def test_no_push_no_move_is_uncontested(self):
+        # Both half-point (no push), identical win legs -> nothing contested.
+        assert contested_margins((4.0, INF), (4.0, INF), (4.0, INF), (4.0, INF)) == []
+
+
+class TestContestedMass:
+    def test_hidden_push_at_three_carries_real_mass(self):
+        # The inverted wedge's headline: a push hiding at margin 3 is worth the full 3-mass.
+        mass, margins = contested_mass((4.0, INF), (3.0, INF), (4.0, INF), (4.0, INF))
+        assert margins == [3]
+        assert mass == pytest.approx(margin_prob(3))
+
+    def test_mass_equals_summed_contested_probs(self):
+        mass, margins = contested_mass((4.0, INF), (3.0, INF), (5.0, INF), (5.0, INF))
+        assert margins == [3, 4]
+        assert mass == pytest.approx(margin_prob(3) + margin_prob(4))

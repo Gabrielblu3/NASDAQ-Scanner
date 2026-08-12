@@ -100,6 +100,28 @@ def push_mass(a: Interval, b: Interval) -> Tuple[float, List[int]]:
     return sum(margin_prob(m) for m in margins), margins
 
 
+def contested_margins(leg_a: Interval, push_a: Interval,
+                      leg_b: Interval, push_b: Interval) -> List[int]:
+    """Integer margins where two contracts settle differently, PUSHES INCLUDED.
+
+    A margin is contested if it flips the WIN sets (symmetric difference of the win legs) OR
+    the WIN-OR-PUSH sets (symmetric difference of the win-or-push legs). The second term is
+    the whole point of the inverted wedge: a book at an integer key number refunds where a
+    look-alike half-point Kalshi contract loses, so the win legs are identical while the
+    win-or-push legs differ by exactly the push margin. Comparing win legs alone would score
+    that as zero disagreement even though the payouts differ by the full mass at that margin.
+    """
+    return sorted(set(disputed_margins(leg_a, leg_b)) | set(disputed_margins(push_a, push_b)))
+
+
+def contested_mass(leg_a: Interval, push_a: Interval,
+                   leg_b: Interval, push_b: Interval) -> Tuple[float, List[int]]:
+    """(probability mass on the contested margins, the contested margins) — the wedge's
+    headline number, now push-aware. See contested_margins for what 'contested' means."""
+    margins = contested_margins(leg_a, push_a, leg_b, push_b)
+    return sum(margin_prob(m) for m in margins), margins
+
+
 def _contains(iv: Interval, m: int) -> bool:
     return iv[0] <= m <= iv[1]
 
