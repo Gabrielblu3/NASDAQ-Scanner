@@ -13,8 +13,6 @@ is genuinely ambiguous the gate is expected to fail closed, and that is asserted
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "prediction_terminal"))
 
 from identity import (  # noqa: E402
