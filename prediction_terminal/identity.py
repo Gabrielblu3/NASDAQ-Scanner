@@ -303,6 +303,17 @@ def _first_number(text: str) -> Optional[float]:
     return float(m.group(1)) if m else None
 
 
+def _nfl_line_number(text: str) -> Optional[float]:
+    """The spread/total line, read AFTER masking team names. A team like the 49ers carries a
+    digit in its name; scanning the raw blob would read "49ers" as the line 49. Blanking every
+    matched alias first (longest-first, so "san francisco 49ers" clears before a stray "49ers"
+    fragment) leaves only the genuine handicap/total for _first_number to find."""
+    t = (text or "").lower()
+    for alias in _NFL_ALIASES:
+        t = re.sub(rf"\b{re.escape(alias)}\b", " ", t)
+    return _first_number(t)
+
+
 def _gt_interval(x: float, inclusive: bool) -> Interval:
     """Integer-snapped 'score greater than x' ( >= x if inclusive )."""
     lo = math.ceil(x) if inclusive else math.floor(x) + 1
@@ -318,7 +329,7 @@ def _lt_interval(x: float, inclusive: bool) -> Interval:
 def _nfl_total_interval(text: str) -> Optional[Interval]:
     """Combined-total wording -> integer-snapped points interval, or None if unreadable."""
     t = (text or "").lower()
-    line = _first_number(t)
+    line = _nfl_line_number(t)
     if line is None:
         return None
     over_excl, over_incl = _any(t, _OVER_EXCL), _any(t, _OVER_INCL)
@@ -411,7 +422,7 @@ def _nfl_spread_leg(text: str, codes, ref_code: str) -> Optional[Interval]:
     if best is None:
         return None
     subject = best[1]
-    num = _first_number(t)
+    num = _nfl_line_number(t)
     if num is None:
         return None
     plus = bool(re.search(r"\+\s*\d", t)) or "underdog" in t

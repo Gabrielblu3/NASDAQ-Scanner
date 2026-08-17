@@ -183,6 +183,32 @@ class TestAdversarialAndFailClosed:
             assert check(kl(title), SB_SIDES["total:over"]).status == SAME_QUESTION
 
 
+class TestDigitBearingTeamNames:
+    """Regression: a team whose name carries a digit (49ers) must not have that digit read as
+    the line. The number scan masks team names first, so only the real handicap/total remains."""
+
+    def test_49ers_total_reads_the_line_not_the_team_digit(self):
+        # "49ers" would leak a 49 into a raw number scan; the masked reader must find 45.5.
+        k = kl("Will the Seahawks and 49ers combine for more than 45.5 points?")
+        e = extract(k)
+        assert e.family == FAMILY_NFL_TOTAL
+        assert e.leg == (46.0, float("inf"))
+        assert e.referent == "SEA-SF"
+
+    def test_49ers_spread_reads_the_handicap_not_the_team_digit(self):
+        # Subject = 49ers (SF, named first); margin_SF > 3.5 -> (4, inf); ref axis min(SF,SEA)
+        # = SEA, so the SF win-region flips to (-inf, -4) on the SEA axis.
+        k = kl("Will the 49ers beat the Seahawks by more than 3.5 points?")
+        e = extract(k)
+        assert e.family == FAMILY_NFL_SPREAD
+        assert e.leg == (float("-inf"), -4.0)
+
+    def test_full_team_name_with_digit_also_masks(self):
+        # "san francisco 49ers" spelled out must clear as a unit, not strand a 49.
+        k = kl("Will the San Francisco 49ers and Seattle Seahawks combine for over 45.5 points?")
+        assert extract(k).leg == (46.0, float("inf"))
+
+
 class TestJoinAndCrossFamily:
     def test_pair_markets_matches_kalshi_slate_to_book(self):
         kalshi = [
