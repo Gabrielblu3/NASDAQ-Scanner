@@ -189,23 +189,20 @@ def _wedge_rows(subtle):
     return rows
 
 
-def _push_risk_label(book_ident):
-    """Plain-language 'what the matched book line refunds' — the push-risk read, shown on
-    every matched line whether or not there's an edge. Push risk lives on the BOOK side of the
-    pair: a Kalshi contract is binary and never refunds, so it carries none. When the matched
-    book spread is an integer key number it refunds at exactly that margin, which a look-alike
-    half-point Kalshi contract does NOT give back — we name that margin and how often games
-    land there. A half-point book line (no push) or a non-spread reads '-'. Never an edge
-    claim; literacy about where the two contracts quietly differ."""
-    if book_ident.family != identity.FAMILY_NFL_SPREAD or book_ident.leg is None:
+def _flip_risk_label(kalshi_ident):
+    """Plain-language 'which exact result flips this contract' — the heartbreak read, shown on
+    every matched line whether or not there's an edge. Unlike push risk (which only exists when
+    a book line refunds, and so is always empty in the SAME bucket — a book push would split the
+    legs into SUBTLY, never SAME), flip risk lives on the KALSHI contract itself: an open-ended
+    spread leg turns on a single margin, and we name that margin and how often games land there.
+    A bounded or total leg has no single hinge and reads '-'. Never an edge claim; literacy
+    about the exact result the contract lives or dies on."""
+    if kalshi_ident.family != identity.FAMILY_NFL_SPREAD or kalshi_ident.leg is None:
         return "-"
-    if book_ident.push_leg is None or book_ident.push_leg == book_ident.leg:
-        return "-"                                  # half-point book line — nothing to push on
-    disputed = keynumbers.disputed_margins(book_ident.leg, book_ident.push_leg)
-    if not disputed:
-        return "-"
-    m = disputed[0]
-    return f"book pushes |{abs(m)}| ~{keynumbers.margin_prob(m) * 100:.0f}%"
+    m = keynumbers.hinge_margin(kalshi_ident.leg)
+    if m is None:
+        return "-"                                  # bounded/total leg — no single hinge margin
+    return f"flips |{abs(m)}| ~{keynumbers.margin_prob(m) * 100:.0f}%"
 
 
 def _unmatched_reason(k, sb_sides):
@@ -277,14 +274,14 @@ def cmd_nfl():
     # --- Section 2: always-on per-contract read (the co-pilot literacy layer) ---
     # Shown for EVERY matched contract, edge or not — the everyday reason to keep the tool
     # open. true = book fair prob (vig stripped by devig); vs_fair = what Kalshi asks above or
-    # below that; push_risk = where the MATCHED BOOK LINE refunds (the Kalshi side never does).
-    # Never a manufactured pick.
+    # below that; flip_risk = the exact margin the KALSHI contract turns on (its heartbreak
+    # result) and how often games land there. Never a manufactured pick.
     lit = []
     for k, s, _ in same:
         fv = fair.get(s.market_id)
         if fv is None or k.implied_prob is None:
             continue
-        risk = _push_risk_label(identity.extract(s))
+        risk = _flip_risk_label(identity.extract(k))
         lit.append((k.event_title, k.implied_prob, fv, (k.implied_prob - fv) * 100.0, risk))
     lit.sort(key=lambda r: -abs(r[3]))
 
@@ -292,11 +289,11 @@ def cmd_nfl():
           f"({(len(lit) / len(kl) * 100.0):.0f}%)" if kl else "\nno Kalshi contracts to read")
     print("  true = book fair (vig stripped); vs_fair mixes real divergence with delayed-data "
           "skew on free odds — literacy, not a standalone edge")
-    print("  push_risk names where the matched book line refunds — Kalshi is binary and never "
-          "pushes, so that mass is only on the book side of the pair")
+    print("  flip_risk names the exact margin the Kalshi contract turns on and how often games "
+          "land there — the result it lives or dies on, not an edge claim")
     if lit:
         print(f"\n{'kalshi_contract':<44} | {'kl_ask':>6} | {'true':>6} | {'vs_fair':>7} | "
-              f"{'push_risk':>16}")
+              f"{'flip_risk':>16}")
         print("-" * 95)
         for title, ask, fv, gap, risk in lit:
             print(f"{title[:44]:<44} | {ask:>6.3f} | {fv:>6.3f} | {gap:>+7.2f} | {risk:>16}")

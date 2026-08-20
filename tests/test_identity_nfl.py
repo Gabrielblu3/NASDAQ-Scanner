@@ -207,6 +207,62 @@ class TestDigitBearingTeamNames:
         assert extract(k).leg == (46.0, float("inf"))
 
 
+class TestStrayDigitsBeforeTheLine:
+    """The class the 49ers mask only dented: any digit AHEAD of the line — a date, a week
+    number, a ticker fragment — must not be read as the line. The number is taken adjacent to
+    the over/under/spread cue, so a stray digit that isn't on a cue's number-bearing side is
+    never a candidate. A missing line fails closed (None), never a confident wrong leg."""
+
+    def test_date_token_before_total_is_not_read_as_the_line(self):
+        # "Sep 14" sits before the "over" cue; the line is the number after "over".
+        k = kl("Seahawks at 49ers Sep 14 combined score over 45.5?")
+        assert extract(k).leg == (46.0, float("inf"))
+
+    def test_week_number_before_total_is_not_read_as_the_line(self):
+        k = kl("Week 2: will the Seahawks and 49ers combine for over 45.5 points?")
+        assert extract(k).leg == (46.0, float("inf"))
+
+    def test_date_token_before_spread_is_not_read_as_the_line(self):
+        # "Sep 14" precedes "beat"; the handicap is the number after "by more than".
+        k = kl("Chiefs Sep 14: beat the Bills by more than 3.5 points?")
+        # subject Chiefs (KC) margin > 3.5 -> ref BUF axis (-inf, -4).
+        assert extract(k).leg == (float("-inf"), -4.0)
+
+    def test_no_scoring_cue_fails_closed(self):
+        # A bare number with no over/under/spread cue is not a readable line -> no leg.
+        k = kl("Seahawks at 49ers 45.5?")
+        v = check(k, SB_SIDES["total:over"])
+        assert v.status == DIFFERENT_QUESTION
+
+
+class TestRematchClosesBeforeLegNuance:
+    """A rematch — same teams, same leg family, different week — must fall out at the CLOSE
+    gate, not walk into the wedge table as a SUBTLY leg-nuance disagreement. The hazard is
+    ordering: a leg-nuance SUBTLY verdict must not short-circuit ahead of the hard
+    DIFFERENT_QUESTION close check. This is the inverted-push wording (normally SUBTLY) dated
+    to a later week, so a regression would surface as SUBTLY instead of DIFFERENT/close."""
+
+    def _book_integer_home(self):
+        ev = dict(SGO_EVENT, odds={
+            "points-home-game-sp-home": {"byBookmaker": {"pinnacle": {"odds": -110, "spread": -3.0}}},
+            "points-away-game-sp-away": {"byBookmaker": {"pinnacle": {"odds": -110, "spread": 3.0}}},
+        })
+        return {m.raw["side"]: m for m in sportsbook.parse_event(ev)}["home"]
+
+    def test_same_week_inverted_push_is_subtly_different(self):
+        # Baseline: at the SAME close date, this pairing is the wedge case -> SUBTLY.
+        k = kl("Will the Chiefs beat the Bills by more than 3.5 points?")
+        assert check(k, self._book_integer_home()).status == SUBTLY_DIFFERENT
+
+    def test_rematch_a_month_later_falls_out_at_close_not_leg(self):
+        # Same teams, same leg wording, but a Week-7 rematch close date ~5 weeks off.
+        k = kl("Will the Chiefs beat the Bills by more than 3.5 points?",
+               close="2026-10-18T17:00:00Z")
+        v = check(k, self._book_integer_home())
+        assert v.status == DIFFERENT_QUESTION
+        assert v.failed_check == "close"
+
+
 class TestJoinAndCrossFamily:
     def test_pair_markets_matches_kalshi_slate_to_book(self):
         kalshi = [

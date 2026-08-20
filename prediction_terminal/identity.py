@@ -298,20 +298,50 @@ def _nfl_referent(codes) -> Optional[str]:
     return "-".join(uniq) if len(uniq) == 2 else None
 
 
-def _first_number(text: str) -> Optional[float]:
-    m = re.search(r"(\d+(?:\.\d+)?)", text or "")
-    return float(m.group(1)) if m else None
+_NUM_RE = re.compile(r"\d+(?:\.\d+)?")
 
 
-def _nfl_line_number(text: str) -> Optional[float]:
-    """The spread/total line, read AFTER masking team names. A team like the 49ers carries a
-    digit in its name; scanning the raw blob would read "49ers" as the line 49. Blanking every
-    matched alias first (longest-first, so "san francisco 49ers" clears before a stray "49ers"
-    fragment) leaves only the genuine handicap/total for _first_number to find."""
+def _nfl_line_number(text: str, pre_cues, post_cues=()) -> Optional[float]:
+    """The betting line, read as the number ADJACENT to the scoring/spread cue it attaches to,
+    not the first number in the blob. Masking team names stopped a digit inside "49ers" from
+    being read as the line, but that fixed one instance of a class: any digit ahead of the line
+    — a week number ("Week 2"), a date ("Sep 14"), a ticker fragment — would still win a
+    first-number scan and hand back a WRONG leg, the one failure mode the gate is built to never
+    have.
+
+    Direction matters: most cues precede their number ("over 45.5", "by more than 3.5"), while
+    "or more"/"or fewer" follow it ("46 or more"). Reading the FIRST number after a pre-cue and
+    the LAST number before a post-cue means a stray date sitting just before an unrelated cue
+    (e.g. "Sep 14 beat ...") is never a candidate — it is not on the number-bearing side of any
+    cue. Among candidates the one with the smallest cue-to-number gap wins. Fail closed (None)
+    when no cue has a number on its expected side."""
     t = (text or "").lower()
     for alias in _NFL_ALIASES:
         t = re.sub(rf"\b{re.escape(alias)}\b", " ", t)
-    return _first_number(t)
+    cands = []  # (gap, value)
+    for cue in pre_cues:
+        i = t.find(cue)
+        if i == -1:
+            continue
+        mm = _NUM_RE.search(t, i + len(cue))
+        if mm:
+            cands.append((mm.start() - (i + len(cue)), float(mm.group())))
+    for cue in post_cues:
+        i = t.find(cue)
+        if i == -1:
+            continue
+        before = list(_NUM_RE.finditer(t, 0, i))
+        if before:
+            mm = before[-1]
+            cands.append((i - mm.end(), float(mm.group())))
+    if not cands:
+        return None
+    return min(cands, key=lambda gv: gv[0])[1]
+
+
+_TOTAL_PRE_CUES = _OVER_EXCL + ("at least",) + _UNDER_EXCL + ("at most",)
+_TOTAL_POST_CUES = ("or more", "or fewer", "or less")
+_SPREAD_PRE_CUES = _SPREAD_CUES + ("by", "+")
 
 
 def _gt_interval(x: float, inclusive: bool) -> Interval:
@@ -329,7 +359,7 @@ def _lt_interval(x: float, inclusive: bool) -> Interval:
 def _nfl_total_interval(text: str) -> Optional[Interval]:
     """Combined-total wording -> integer-snapped points interval, or None if unreadable."""
     t = (text or "").lower()
-    line = _nfl_line_number(t)
+    line = _nfl_line_number(t, _TOTAL_PRE_CUES, _TOTAL_POST_CUES)
     if line is None:
         return None
     over_excl, over_incl = _any(t, _OVER_EXCL), _any(t, _OVER_INCL)
@@ -422,7 +452,7 @@ def _nfl_spread_leg(text: str, codes, ref_code: str) -> Optional[Interval]:
     if best is None:
         return None
     subject = best[1]
-    num = _nfl_line_number(t)
+    num = _nfl_line_number(t, _SPREAD_PRE_CUES)
     if num is None:
         return None
     plus = bool(re.search(r"\+\s*\d", t)) or "underdog" in t
@@ -588,7 +618,30 @@ def compare(ia: EventIdentity, ib: EventIdentity,
         return IdentityVerdict(DIFFERENT_QUESTION, "referent",
                                f"different meetings: {ia.referent} vs {ib.referent}")
 
-    # 2. Outcome leg — the check that catches complements.
+    # 2. Authority — same settlement source of truth. Runs before the outcome-leg block so a
+    #    hard DIFFERENT_QUESTION disqualifier is never short-circuited by a softer SUBTLY
+    #    leg-nuance verdict.
+    if ia.authority is None or ib.authority is None:
+        return IdentityVerdict(DIFFERENT_QUESTION, "authority",
+                               "could not confirm a shared settlement authority — fail-closed")
+    if ia.authority != ib.authority:
+        return IdentityVerdict(DIFFERENT_QUESTION, "authority",
+                               f"different settlement authority: {ia.authority} vs {ib.authority}")
+
+    # 3. Close — same resolution window. Also runs before the outcome-leg block: a rematch
+    #    (same teams, same leg, different week) must fall out here at "close", not walk into the
+    #    wedge table as a SUBTLY leg-nuance disagreement.
+    if ia.close_date is None or ib.close_date is None:
+        return IdentityVerdict(DIFFERENT_QUESTION, "close",
+                               "missing close date on one side — fail-closed")
+    da = datetime.fromisoformat(ia.close_date).date()
+    db = datetime.fromisoformat(ib.close_date).date()
+    if abs((da - db).days) > max_close_gap_days:
+        return IdentityVerdict(DIFFERENT_QUESTION, "close",
+                               f"close dates {ia.close_date} vs {ib.close_date} differ by more "
+                               f"than {max_close_gap_days}d")
+
+    # 4. Outcome leg — the check that catches complements.
     if ia.family in _LEG_FAMILIES:
         if ia.leg is None or ib.leg is None:
             return IdentityVerdict(DIFFERENT_QUESTION, "outcome_leg",
@@ -620,25 +673,6 @@ def compare(ia: EventIdentity, ib: EventIdentity,
     elif ia.level_bound != ib.level_bound:
         return IdentityVerdict(DIFFERENT_QUESTION, "outcome_leg",
                                f"different thresholds: {ia.level_bound}% vs {ib.level_bound}%")
-
-    # 3. Authority — same settlement source of truth.
-    if ia.authority is None or ib.authority is None:
-        return IdentityVerdict(DIFFERENT_QUESTION, "authority",
-                               "could not confirm a shared settlement authority — fail-closed")
-    if ia.authority != ib.authority:
-        return IdentityVerdict(DIFFERENT_QUESTION, "authority",
-                               f"different settlement authority: {ia.authority} vs {ib.authority}")
-
-    # 4. Close — same resolution window.
-    if ia.close_date is None or ib.close_date is None:
-        return IdentityVerdict(DIFFERENT_QUESTION, "close",
-                               "missing close date on one side — fail-closed")
-    da = datetime.fromisoformat(ia.close_date).date()
-    db = datetime.fromisoformat(ib.close_date).date()
-    if abs((da - db).days) > max_close_gap_days:
-        return IdentityVerdict(DIFFERENT_QUESTION, "close",
-                               f"close dates {ia.close_date} vs {ib.close_date} differ by more "
-                               f"than {max_close_gap_days}d")
 
     return IdentityVerdict(SAME_QUESTION, None,
                            f"same referent ({ia.referent}), same leg "
