@@ -301,6 +301,20 @@ def _nfl_referent(codes) -> Optional[str]:
 _NUM_RE = re.compile(r"\d+(?:\.\d+)?")
 
 
+def _cue_re(cue: str) -> str:
+    """Word-boundary-guarded pattern for a betting cue, so a cue only matches as a standalone
+    token and not as a substring of a longer word. Each ALPHANUMERIC edge gets a `\\w` guard:
+    'spread' stops firing inside 'KXNFLSPREAD' (the live ticker), 'over' inside 'overtime',
+    'under' inside 'underdog'. A non-alnum edge (the '+' cue) is left unguarded so the point
+    digit immediately after it still reads — `\\b+` would never match."""
+    pat = re.escape(cue)
+    if cue[:1].isalnum():
+        pat = r"(?<!\w)" + pat
+    if cue[-1:].isalnum():
+        pat = pat + r"(?!\w)"
+    return pat
+
+
 def _nfl_line_number(text: str, pre_cues, post_cues=()) -> Optional[float]:
     """The betting line, read as the number ADJACENT to the scoring/spread cue it attaches to,
     not the first number in the blob. Masking team names stopped a digit inside "49ers" from
@@ -313,30 +327,32 @@ def _nfl_line_number(text: str, pre_cues, post_cues=()) -> Optional[float]:
     "or more"/"or fewer" follow it ("46 or more"). Reading the FIRST number after a pre-cue and
     the LAST number before a post-cue means a stray date sitting just before an unrelated cue
     (e.g. "Sep 14 beat ...") is never a candidate — it is not on the number-bearing side of any
-    cue. Among candidates the one with the smallest cue-to-number gap wins. Fail closed (None)
-    when no cue has a number on its expected side."""
+    cue.
+
+    Cues match on word boundaries (see _cue_re) and EVERY occurrence is considered, not just
+    the first: the blob ends with the market_id, whose live ticker is e.g.
+    "KXNFLSPREAD-26SEP13KCBUF-KC3.5" — a bare `.find("spread")` would fire on the ticker and read
+    the year (26) as the line, and a first-occurrence-only scan could miss the real cue if a
+    decoy appeared earlier. Among candidates the smallest cue-to-number gap wins; ties break on
+    the earliest number in the text (a stated rule, not tuple order)."""
     t = (text or "").lower()
     for alias in _NFL_ALIASES:
         t = re.sub(rf"\b{re.escape(alias)}\b", " ", t)
-    cands = []  # (gap, value)
+    cands = []  # (gap, number_start, value)
     for cue in pre_cues:
-        i = t.find(cue)
-        if i == -1:
-            continue
-        mm = _NUM_RE.search(t, i + len(cue))
-        if mm:
-            cands.append((mm.start() - (i + len(cue)), float(mm.group())))
+        for cm in re.finditer(_cue_re(cue), t):
+            mm = _NUM_RE.search(t, cm.end())
+            if mm:
+                cands.append((mm.start() - cm.end(), mm.start(), float(mm.group())))
     for cue in post_cues:
-        i = t.find(cue)
-        if i == -1:
-            continue
-        before = list(_NUM_RE.finditer(t, 0, i))
-        if before:
-            mm = before[-1]
-            cands.append((i - mm.end(), float(mm.group())))
+        for cm in re.finditer(_cue_re(cue), t):
+            before = list(_NUM_RE.finditer(t, 0, cm.start()))
+            if before:
+                mm = before[-1]
+                cands.append((cm.start() - mm.end(), mm.start(), float(mm.group())))
     if not cands:
         return None
-    return min(cands, key=lambda gv: gv[0])[1]
+    return min(cands, key=lambda c: (c[0], c[1]))[2]
 
 
 _TOTAL_PRE_CUES = _OVER_EXCL + ("at least",) + _UNDER_EXCL + ("at most",)

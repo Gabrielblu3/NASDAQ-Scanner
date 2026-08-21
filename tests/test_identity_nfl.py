@@ -235,6 +235,39 @@ class TestStrayDigitsBeforeTheLine:
         assert v.status == DIFFERENT_QUESTION
 
 
+class TestLiveTickerDoesNotLeakIntoTheLine:
+    """The default kl() ticker is digit-free, which HID a class: extract() reads the line from a
+    blob that ends with market_id, and a live ticker is e.g. "KXNFLSPREAD-26SEP13KCBUF-KC3.5".
+    A bare cue scan fires 'spread' inside 'KXNFLSPREAD' and reads the year (26/27) as the line —
+    worse than the first-number scan it replaced, which got 3.5 from the title. These fixtures
+    carry real ticker shapes so the blindness can't hide behind a synthetic ticker again."""
+
+    def test_september_spread_ticker_year_is_not_read_as_the_line(self):
+        k = kl("Will the Chiefs beat the Bills by more than 3.5 points?",
+               ticker="KXNFLSPREAD-26SEP13KCBUF-KC3.5")
+        assert extract(k).leg == (float("-inf"), -4.0)
+        assert check(k, SB_SIDES["spread:home"]).status == SAME_QUESTION
+
+    def test_january_spread_ticker_year_is_not_read_as_the_line(self):
+        # A later-round ticker tracks the year (27) — same leak, different digit.
+        k = kl("Will the Chiefs beat the Bills by more than 3.5 points?",
+               ticker="KXNFLSPREAD-27JAN04KCBUF-KC3.5")
+        assert extract(k).leg == (float("-inf"), -4.0)
+
+    def test_total_ticker_does_not_leak(self):
+        k = kl("Will the Bills and Chiefs combine for over 45.5 points?",
+               ticker="KXNFLTOTAL-26SEP13KCBUF-45.5")
+        assert extract(k).leg == (46.0, float("inf"))
+        assert check(k, SB_SIDES["total:over"]).status == SAME_QUESTION
+
+    def test_over_inside_overtime_is_not_a_total_cue(self):
+        # Word-boundary guard stops 'over' inside 'overtime' from firing as a total cue; only the
+        # real "over 45.5" reads. Without the guard, 'overtime' could anchor a wrong number.
+        k = kl("Will the Bills and Chiefs combine for over 45.5 points, overtime included?",
+               ticker="KXNFLTOTAL-26SEP13KCBUF-45.5")
+        assert extract(k).leg == (46.0, float("inf"))
+
+
 class TestRematchClosesBeforeLegNuance:
     """A rematch — same teams, same leg family, different week — must fall out at the CLOSE
     gate, not walk into the wedge table as a SUBTLY leg-nuance disagreement. The hazard is
